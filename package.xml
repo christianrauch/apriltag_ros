@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>apriltag2_node</name>
+  <version>0.0.0</version>
+  <description>apriltag2_node</description>
+  <maintainer email="Rauch.Christian@gmx.de"></maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
