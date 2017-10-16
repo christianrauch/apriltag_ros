@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 14)
 
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(apriltag_msgs REQUIRED)
 
 find_package(Threads REQUIRED)
 
@@ -20,11 +22,9 @@ add_executable(apriltag2_node src/apriltag2_node.cpp)
 ament_target_dependencies(apriltag2_node
   geometry_msgs
   rclcpp
-  sensor_msgs)
+  sensor_msgs
+  apriltag_msgs)
 target_link_libraries(apriltag2_node ${apriltag_LIBRARIES} Threads::Threads)
-
-target_include_directories(apriltag2_node PRIVATE ${kobuki_driver_INCLUDE_DIRS})
-target_link_libraries(apriltag2_node ${kobuki_driver_LIBRARIES})
 
 install(TARGETS apriltag2_node DESTINATION lib/${PROJECT_NAME})
 

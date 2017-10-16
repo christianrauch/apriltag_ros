@@ -2,6 +2,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <apriltag_msgs/msg/april_tag_detection.hpp>
+#include <apriltag_msgs/msg/april_tag_detection_array.hpp>
 
 // apriltag
 #include <apriltag.h>
@@ -14,6 +16,7 @@ public:
         sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
             std::bind(&AprilTag2Node::onImage, this, std::placeholders::_1));
         pub_pose = this->create_publisher<geometry_msgs::msg::TransformStamped>("tag_pose");
+        pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
         tf = tag36h11_create();
         td = apriltag_detector_create();
@@ -31,6 +34,7 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr sub_img;
     rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr pub_pose;
+    rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
 
     void onImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg_img) {
         // decode image
@@ -61,6 +65,7 @@ private:
 
         // decode image
         zarray_t* detections = apriltag_detector_detect(td, im);
+        apriltag_msgs::msg::AprilTagDetectionArray msg_detections;
 
         for (int i = 0; i < zarray_size(detections); i++) {
             apriltag_detection_t* det;
@@ -70,7 +75,23 @@ private:
                        i, det->family->d*det->family->d, det->family->h, det->id, det->hamming, det->goodness, det->decision_margin);
 
             // TODO: do the projection
+            // geometry_msgs/TransformStamped
             const matd_t* H = det->H;
+
+            apriltag_msgs::msg::AprilTagDetection msg_detection;
+            msg_detection.family = std::string(det->family->name);
+            msg_detection.id = det->id;
+            msg_detection.hamming = det->hamming;
+            msg_detection.goodness = det->goodness;
+            msg_detection.decision_margin = det->decision_margin;
+            msg_detection.centre[0] = det->c[0];
+            msg_detection.centre[1] = det->c[1];
+            std::memcpy(msg_detection.corners.data(), det->p, sizeof(double)*8);
+            std::memcpy(msg_detection.homography.data(), det->H->data, sizeof(double)*9);
+
+            msg_detections.detections.push_back(msg_detection);
+
+            pub_detections->publish(msg_detections);
         }
 
         apriltag_detections_destroy(detections);
