@@ -10,6 +10,8 @@
 #include <tag36h11.h>
 #include <common/pjpeg.h>
 
+#include <iomanip>
+
 class AprilTag2Node : public rclcpp::Node {
 public:
     AprilTag2Node() : Node("apriltag2") {
@@ -45,7 +47,7 @@ private:
             int err = 0;
             pjpeg_t* pj = pjpeg_create_from_buffer(msg_img->data.data(), msg_img->data.size(), 0, &err);
             if(pj==NULL) {
-                printf("pjpeg error %d\n", err);
+                std::cerr << "pjpeg error " << err << std::endl;
                 return;
             }
 
@@ -59,7 +61,7 @@ private:
         }
 
         if (im == NULL) {
-            printf("could not load image\n");
+            std::cerr << "could not load image" << std::endl;
             return;
         }
 
@@ -71,12 +73,12 @@ private:
             apriltag_detection_t* det;
             zarray_get(detections, i, &det);
 
-            printf("detection %3d: id (%2dx%2d)-%-4d, hamming %d, goodness %8.3f, margin %8.3f\n",
-                       i, det->family->d*det->family->d, det->family->h, det->id, det->hamming, det->goodness, det->decision_margin);
-
-            // TODO: do the projection
-            // geometry_msgs/TransformStamped
-            const matd_t* H = det->H;
+//            std::cout.precision(2);
+//            std::cout << "id(" << det->family->d*det->family->d << "x" << det->family->h << "): " << det->id;
+//            std::cout << ", goodness: " << det->goodness << std::fixed;
+//            std::cout << ", margin: " << det->decision_margin << std::fixed;
+//            std::cout << ", cx,cy: " << det->c[0] << " " << det->c[1] << std::fixed;
+//            std::cout << std::endl;
 
             apriltag_msgs::msg::AprilTagDetection msg_detection;
             msg_detection.family = std::string(det->family->name);
