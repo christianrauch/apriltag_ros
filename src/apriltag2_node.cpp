@@ -68,6 +68,7 @@ private:
         // decode image
         zarray_t* detections = apriltag_detector_detect(td, im);
         apriltag_msgs::msg::AprilTagDetectionArray msg_detections;
+        msg_detections.header = msg_img->header;
 
         for (int i = 0; i < zarray_size(detections); i++) {
             apriltag_detection_t* det;
