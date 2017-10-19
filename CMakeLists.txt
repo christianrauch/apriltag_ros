@@ -8,6 +8,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(apriltag_msgs REQUIRED)
+find_package(class_loader REQUIRED)
 
 find_package(Threads REQUIRED)
 
@@ -18,13 +19,24 @@ pkg_search_module(apriltag REQUIRED apriltag)
 include_directories(${apriltag_INCLUDE_DIRS})
 link_directories(${apriltag_LIBDIR})
 
+include_directories(include)
+
+add_library(AprilTag2Node SHARED src/AprilTag2Node.cpp)
+ament_target_dependencies(AprilTag2Node rclcpp sensor_msgs apriltag_msgs class_loader)
+target_link_libraries(AprilTag2Node ${apriltag_LIBRARIES})
+rclcpp_register_node_plugins(AprilTag2Node "AprilTag2Node")
+
 add_executable(apriltag2_node src/apriltag2_node.cpp)
-ament_target_dependencies(apriltag2_node
-  geometry_msgs
-  rclcpp
-  sensor_msgs
-  apriltag_msgs)
-target_link_libraries(apriltag2_node ${apriltag_LIBRARIES} Threads::Threads)
+target_link_libraries(apriltag2_node AprilTag2Node)
+
+ament_environment_hooks(${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH})
+
+install(TARGETS
+    AprilTag2Node
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
 
 install(TARGETS apriltag2_node DESTINATION lib/${PROJECT_NAME})
 
