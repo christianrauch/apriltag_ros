@@ -7,14 +7,16 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2") {
     pub_pose = this->create_publisher<geometry_msgs::msg::TransformStamped>("tag_pose");
     pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
-    tf = tag36h11_create();
+    get_parameter_or<std::string>("family", tag_family, "16h5");
+
+    tf = tag_create[tag_family]();
     td = apriltag_detector_create();
     apriltag_detector_add_family(td, tf);
 }
 
 AprilTag2Node::~AprilTag2Node() {
     apriltag_detector_destroy(td);
-    tag36h11_destroy(tf);
+    tag_destroy[tag_family](tf);
 }
 
 void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg_img) {
@@ -80,5 +82,25 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
 
     image_u8_destroy(im);
 }
+
+std::map<std::string, apriltag_family_t *(*)(void)> AprilTag2Node::tag_create =
+{
+    {"16h5", tag16h5_create},
+    {"25h7", tag25h7_create},
+    {"25h9", tag25h9_create},
+    {"36h10", tag36h10_create},
+    {"36h11", tag36h11_create},
+    {"36artoolkit", tag36artoolkit_create},
+};
+
+std::map<std::string, void (*)(apriltag_family_t*)> AprilTag2Node::tag_destroy =
+{
+    {"16h5", tag16h5_destroy},
+    {"25h7", tag25h7_destroy},
+    {"25h9", tag25h9_destroy},
+    {"36h10", tag36h10_destroy},
+    {"36h11", tag36h11_destroy},
+    {"36artoolkit", tag36artoolkit_destroy},
+};
 
 CLASS_LOADER_REGISTER_CLASS(AprilTag2Node, rclcpp::Node)

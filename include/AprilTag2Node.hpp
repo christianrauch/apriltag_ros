@@ -9,8 +9,15 @@
 
 // apriltag
 #include <apriltag.h>
-#include <tag36h11.h>
 #include <common/pjpeg.h>
+
+// default tag families
+#include <tag16h5.h>
+#include <tag25h7.h>
+#include <tag25h9.h>
+#include <tag36h10.h>
+#include <tag36h11.h>
+#include <tag36artoolkit.h>
 
 #include <iomanip>
 
@@ -24,6 +31,11 @@ public:
 private:
     apriltag_family_t* tf;
     apriltag_detector_t* td;
+    std::string tag_family;
+
+    // function pointer for tag family creation / destruction
+    static std::map<std::string, apriltag_family_t *(*)(void)> tag_create;
+    static std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy;
 
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr sub_img;
     rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr pub_pose;
