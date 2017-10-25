@@ -9,14 +9,14 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2") {
 
     get_parameter_or<std::string>("family", tag_family, "16h5");
 
-    tf = tag_create[tag_family]();
+    tf = tag_create.at(tag_family)();
     td = apriltag_detector_create();
     apriltag_detector_add_family(td, tf);
 }
 
 AprilTag2Node::~AprilTag2Node() {
     apriltag_detector_destroy(td);
-    tag_destroy[tag_family](tf);
+    tag_destroy.at(tag_family)(tf);
 }
 
 void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg_img) {
