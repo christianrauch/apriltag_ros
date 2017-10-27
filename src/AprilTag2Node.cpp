@@ -7,6 +7,17 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2") {
     pub_pose = this->create_publisher<geometry_msgs::msg::TransformStamped>("tag_pose");
     pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
+    // get single camera info message
+    sub_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+                "image/camera_info",
+                [this](sensor_msgs::msg::CameraInfo::UniquePtr info){
+                    camera_info = *info;
+                    std::cout << "got camera parameters" << std::endl;
+                    // delete subscription
+                    sub_info.reset();
+                }
+    );
+
     get_parameter_or<std::string>("family", tag_family, "16h5");
 
     tf = tag_create.at(tag_family)();

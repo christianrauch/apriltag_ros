@@ -3,6 +3,7 @@
 // ros
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
+#include <sensor_msgs/srv/set_camera_info.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <apriltag_msgs/msg/april_tag_detection.hpp>
 #include <apriltag_msgs/msg/april_tag_detection_array.hpp>
@@ -33,11 +34,14 @@ private:
     apriltag_detector_t* td;
     std::string tag_family;
 
+    sensor_msgs::msg::CameraInfo camera_info;
+
     // function pointer for tag family creation / destruction
     static std::map<std::string, apriltag_family_t *(*)(void)> tag_create;
     static std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy;
 
     rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr sub_img;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info;
     rclcpp::Publisher<geometry_msgs::msg::TransformStamped>::SharedPtr pub_pose;
     rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
 
