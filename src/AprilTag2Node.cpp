@@ -79,8 +79,8 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         msg_detection.hamming = det->hamming;
         msg_detection.goodness = det->goodness;
         msg_detection.decision_margin = det->decision_margin;
-        msg_detection.centre[0] = det->c[0];
-        msg_detection.centre[1] = det->c[1];
+        msg_detection.centre.x = det->c[0];
+        msg_detection.centre.y = det->c[1];
         std::memcpy(msg_detection.corners.data(), det->p, sizeof(double)*8);
         std::memcpy(msg_detection.homography.data(), det->H->data, sizeof(double)*9);
 
