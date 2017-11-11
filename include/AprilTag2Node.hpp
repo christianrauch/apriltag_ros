@@ -21,6 +21,8 @@
 #include <tag36artoolkit.h>
 
 #include <iomanip>
+#include <Eigen/Core>
+#include <Eigen/Dense>
 
 
 class AprilTag2Node : public rclcpp::Node {
@@ -30,11 +32,14 @@ public:
     ~AprilTag2Node();
 
 private:
+    typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
+
     apriltag_family_t* tf;
     apriltag_detector_t* td;
     std::string tag_family;
+    std::atomic<float> tag_size;
 
-    sensor_msgs::msg::CameraInfo camera_info;
+    Mat3 K;
 
     // function pointer for tag family creation / destruction
     static std::map<std::string, apriltag_family_t *(*)(void)> tag_create;
@@ -46,4 +51,6 @@ private:
     rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
 
     void onImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg_img);
+
+    void getPose(const matd_t& H, geometry_msgs::msg::Transform& t);
 };
