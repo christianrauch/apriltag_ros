@@ -4,6 +4,8 @@
 AprilTag2Node::AprilTag2Node() : Node("apriltag2") {
     sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
         std::bind(&AprilTag2Node::onImage, this, std::placeholders::_1));
+    sub_param_tag_size = this->create_subscription<std_msgs::msg::Float32>("param/set_tag_size",
+        std::bind(&AprilTag2Node::onTagSize, this, std::placeholders::_1));
     pub_pose = this->create_publisher<geometry_msgs::msg::TransformStamped>("tf");
     pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
@@ -97,6 +99,10 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
     apriltag_detections_destroy(detections);
 
     image_u8_destroy(im);
+}
+
+void AprilTag2Node::onTagSize(const std_msgs::msg::Float32::SharedPtr msg_tag_size) {
+    tag_size = msg_tag_size->data;
 }
 
 void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t) {
