@@ -1,7 +1,7 @@
 #include <AprilTag2Node.hpp>
 #include <class_loader/class_loader_register_macro.h>
 
-AprilTag2Node::AprilTag2Node() : Node("apriltag2") {
+AprilTag2Node::AprilTag2Node() : Node("apriltag2", "", true) {
     sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
         std::bind(&AprilTag2Node::onImage, this, std::placeholders::_1));
     sub_param_tag_size = this->create_subscription<std_msgs::msg::Float32>("param/set_tag_size",
