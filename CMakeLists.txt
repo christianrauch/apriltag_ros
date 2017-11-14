@@ -15,8 +15,6 @@ INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
 
 find_package(Threads REQUIRED)
 
-set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
-
 find_package(PkgConfig)
 pkg_search_module(apriltag REQUIRED apriltag)
 include_directories(${apriltag_INCLUDE_DIRS})
