@@ -17,7 +17,7 @@ find_package(Threads REQUIRED)
 
 find_package(PkgConfig)
 pkg_search_module(apriltag REQUIRED apriltag)
-include_directories(${apriltag_INCLUDE_DIRS})
+include_directories(${apriltag_INCLUDE_DIRS}/apriltag)
 link_directories(${apriltag_LIBDIR})
 
 include_directories(include)
