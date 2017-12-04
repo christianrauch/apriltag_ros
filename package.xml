@@ -12,6 +12,7 @@
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>apriltag_msgs</depend>
+  <depend>apriltag</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
