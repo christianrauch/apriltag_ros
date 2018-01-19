@@ -14,7 +14,7 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2", "", true) {
     sub_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
         "image/camera_info",
         [this](sensor_msgs::msg::CameraInfo::UniquePtr info){
-            std::cout << "got camera parameters" << std::endl;
+            RCLCPP_INFO(get_logger(), "got camera parameters");
             std::memcpy(K.data(), info->k.data(), 9*sizeof(double));
             // delete subscription
             sub_info.reset();
@@ -45,7 +45,7 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         int err = 0;
         pjpeg_t* pj = pjpeg_create_from_buffer(msg_img->data.data(), msg_img->data.size(), 0, &err);
         if(pj==NULL) {
-            std::cerr << "pjpeg error " << err << std::endl;
+            RCLCPP_ERROR(get_logger(), "pjpeg error");
             return;
         }
 
@@ -54,12 +54,12 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         pjpeg_destroy(pj);
     }
     else {
-        std::cerr << "not supported: " << msg_img->format << std::endl;
+        RCLCPP_ERROR(get_logger(), "not supported: %s",  msg_img->format);
         return;
     }
 
     if (im == NULL) {
-        std::cerr << "could not load image" << std::endl;
+        RCLCPP_ERROR(get_logger(), "could not load image");
         return;
     }
 
