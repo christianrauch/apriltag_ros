@@ -1,5 +1,5 @@
 #include <AprilTag2Node.hpp>
-#include <class_loader/class_loader_register_macro.h>
+#include <class_loader/register_macro.hpp>
 
 AprilTag2Node::AprilTag2Node() : Node("apriltag2", "", true) {
     sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
