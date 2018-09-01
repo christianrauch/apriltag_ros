@@ -1,13 +1,13 @@
 #include <AprilTag2Node.hpp>
 #include <class_loader/register_macro.hpp>
 
-AprilTag2Node::AprilTag2Node() : Node("apriltag2", "", true) {
+AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
     sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
         std::bind(&AprilTag2Node::onImage, this, std::placeholders::_1),
         rmw_qos_profile_sensor_data);
     sub_param_tag_size = this->create_subscription<std_msgs::msg::Float32>("param/set_tag_size",
         std::bind(&AprilTag2Node::onTagSize, this, std::placeholders::_1));
-    pub_pose = this->create_publisher<geometry_msgs::msg::TransformStamped>("tf");
+    pub_pose = this->create_publisher<geometry_msgs::msg::TransformStamped>("/tf");
     pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
     // get single camera info message

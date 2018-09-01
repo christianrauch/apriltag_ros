@@ -2,7 +2,7 @@
 <package format="2">
   <name>apriltag2_node</name>
   <version>0.0.0</version>
-  <description>apriltag2_node</description>
+  <description>AprilTag2 detection node</description>
   <maintainer email="Rauch.Christian@gmx.de"></maintainer>
   <license>MIT</license>
 
