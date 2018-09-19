@@ -5,8 +5,6 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
     sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
         std::bind(&AprilTag2Node::onImage, this, std::placeholders::_1),
         rmw_qos_profile_sensor_data);
-    sub_param_tag_size = this->create_subscription<std_msgs::msg::Float32>("param/set_tag_size",
-        std::bind(&AprilTag2Node::onTagSize, this, std::placeholders::_1));
     pub_pose = this->create_publisher<geometry_msgs::msg::TransformStamped>("/tf");
     pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
@@ -21,13 +19,30 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
         }
     );
 
-    get_parameter_or<std::string>("family", tag_family, "16h5");
+    get_parameter_or<std::string>("family", tag_family, "36h11");
+    get_parameter_or<double>("size", tag_edge_size, 2.0);
+    get_parameter_or<int>("max_hamming", max_hamming, 0);
 
-    // default tag size (scale 1)
-    tag_size = 2.0;
+    // get tag names and IDs
+    static const std::string tag_list_prefix = "tag_lists";
+    auto parameters_and_prefixes = list_parameters({tag_list_prefix}, 10);
+    for (const std::string &name : parameters_and_prefixes.names) {
+        const int id = get_parameter(name).get_value<int>();
+        tracked_tags[id] = name.substr(tag_list_prefix.size()+1, name.size());
+    }
 
+    if(!tag_create.count(tag_family)) {
+        throw std::runtime_error("unsupported tag family: "+tag_family);
+    }
     tf = tag_create.at(tag_family)();
     td = apriltag_detector_create();
+    get_parameter_or<float>("decimate", td->quad_decimate, 1.0);
+    get_parameter_or<float>("blur", td->quad_sigma, 0.0);
+    get_parameter_or<int>("threads", td->nthreads, 1);
+    get_parameter_or<int>("debug", td->debug, false);
+    get_parameter_or<int>("refine-edges", td->refine_edges, true);
+    get_parameter_or<int>("refine-decode", td->refine_decode, false);
+    get_parameter_or<int>("refine-pose", td->refine_pose, false);
     apriltag_detector_add_family(td, tf);
 }
 
@@ -73,6 +88,12 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         apriltag_detection_t* det;
         zarray_get(detections, i, &det);
 
+        // ignore untracked tags
+        if(tracked_tags.size()>0 && !tracked_tags.count(det->id)) { continue; }
+
+        // reject detections with more corrected bits than allowed
+        if(det->hamming>max_hamming) { continue; }
+
         // detection
         apriltag_msgs::msg::AprilTagDetection msg_detection;
         msg_detection.family = std::string(det->family->name);
@@ -89,7 +110,8 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         // 3D orientation and position
         geometry_msgs::msg::TransformStamped tf;
         tf.header = msg_img->header;
-        tf.child_frame_id = std::string(det->family->name)+":"+std::to_string(det->id);
+        // set child frame name by generic tag name or configured tag name
+        tf.child_frame_id = tracked_tags.size() ? tracked_tags.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id) ;
         getPose(*(det->H), tf.transform);
 
         pub_pose->publish(tf);
@@ -100,10 +122,6 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
     apriltag_detections_destroy(detections);
 
     image_u8_destroy(im);
-}
-
-void AprilTag2Node::onTagSize(const std_msgs::msg::Float32::SharedPtr msg_tag_size) {
-    tag_size = msg_tag_size->data;
 }
 
 void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t) {
@@ -119,7 +137,9 @@ void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t) {
     R.col(1) = T.col(1).normalized();
     R.col(2) = R.col(0).cross(R.col(1));
 
-    const Eigen::Vector3d tt = T.rightCols<1>() / ((T.col(0).norm() + T.col(0).norm())/2.0) * (tag_size/2.0);
+    // the corner coordinates of the tag in the canonical frame are (+/-1, +/-1)
+    // hence the scale is half of the edge size
+    const Eigen::Vector3d tt = T.rightCols<1>() / ((T.col(0).norm() + T.col(0).norm())/2.0) * (tag_edge_size/2.0);
 
     const Eigen::Quaterniond q(R);
 
