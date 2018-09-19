@@ -38,13 +38,13 @@ AprilTag2Node::~AprilTag2Node() {
 
 void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg_img) {
     // decode image
-    image_u8_t* im = NULL;
+    image_u8_t* im = nullptr;
 
-    if(msg_img->format=="jpeg") {
+    if(msg_img->format=="jpeg" || msg_img->format=="jpg") {
         // convert jpeg data
         int err = 0;
         pjpeg_t* pj = pjpeg_create_from_buffer(msg_img->data.data(), msg_img->data.size(), 0, &err);
-        if(pj==NULL) {
+        if(pj==nullptr) {
             RCLCPP_ERROR(get_logger(), "pjpeg error");
             return;
         }
@@ -54,11 +54,11 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         pjpeg_destroy(pj);
     }
     else {
-        RCLCPP_ERROR(get_logger(), "not supported: %s",  msg_img->format);
+        RCLCPP_ERROR(get_logger(), "not supported: %s",  msg_img->format.c_str());
         return;
     }
 
-    if (im == NULL) {
+    if (im==nullptr) {
         RCLCPP_ERROR(get_logger(), "could not load image");
         return;
     }
