@@ -1,0 +1,20 @@
+apriltag:
+    apriltag2:
+        ros__parameters:
+            family: 16h5            # tag family, one of 16h5, 25h7, 25h9, 36h10, 36h11, 36artoolkit
+            size: 0.162             # tag edge size in meter
+            max_hamming: 0          # maximum allowed hamming distance (corrected bits)
+
+            # see "apriltag.h" for more documentation on these optional parameters
+            decimate: 1.0           # decimate resolution for quad detection
+            blur: 0.0               # sigma of Gaussian blur for quad detection
+            refine-edges: 1         # snap to strong gradients
+            threads: 1              # number of threads
+            refine-decode: 0        # increase the number of detected tags
+            refine-pose: 0          # increase the accuracy of the extracted pose
+            debug: 0                # write additional debugging images to current working directory
+
+            # optional list of tag IDs and their frame names
+            tag_lists:
+                base: 9
+                object: 14
