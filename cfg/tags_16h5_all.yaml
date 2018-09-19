@@ -4,6 +4,7 @@ apriltag:
             family: 16h5            # tag family, one of 16h5, 25h7, 25h9, 36h10, 36h11, 36artoolkit
             size: 0.162             # tag edge size in meter
             max_hamming: 0          # maximum allowed hamming distance (corrected bits)
+            z_up: true              # rotate about x-axis to have Z pointing upwards
 
             # see "apriltag.h" for more documentation on these optional parameters
             decimate: 1.0           # decimate resolution for quad detection

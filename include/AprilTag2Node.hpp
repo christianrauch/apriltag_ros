@@ -43,6 +43,8 @@ private:
 
     Mat3 K;
 
+    bool z_up;
+
     // function pointer for tag family creation / destruction
     static std::map<std::string, apriltag_family_t *(*)(void)> tag_create;
     static std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy;
@@ -54,5 +56,5 @@ private:
 
     void onImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg_img);
 
-    void getPose(const matd_t& H, geometry_msgs::msg::Transform& t);
+    void getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const bool z_up = false);
 };

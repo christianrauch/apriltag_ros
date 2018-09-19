@@ -30,6 +30,7 @@ apriltag:                           # namespace
             # required
             family: <tag family>    # tag family name
             size: <tag edge size>   # tag edge size in meter
+            z_up: true              # rotate about x-axis to have Z pointing upwards
 
             # (optional) tuning of detection
             max_hamming: 0          # maximum allowed hamming distance (corrected bits)

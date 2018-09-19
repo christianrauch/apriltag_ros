@@ -31,6 +31,8 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
         tracked_tags[id] = name.substr(tag_list_prefix.size()+1, name.size());
     }
 
+    get_parameter_or<bool>("z_up", z_up, false);
+
     if(!tag_create.count(tag_family)) {
         throw std::runtime_error("unsupported tag family: "+tag_family);
     }
@@ -112,7 +114,7 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         tf.header = msg_img->header;
         // set child frame name by generic tag name or configured tag name
         tf.child_frame_id = tracked_tags.size() ? tracked_tags.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id) ;
-        getPose(*(det->H), tf.transform);
+        getPose(*(det->H), tf.transform, z_up);
 
         pub_pose->publish(tf);
     }
@@ -124,7 +126,7 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
     image_u8_destroy(im);
 }
 
-void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t) {
+void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const bool z_up) {
 
     const Eigen::Map<const Mat3>Hm(H.data);
 
@@ -136,6 +138,12 @@ void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t) {
     R.col(0) = T.col(0).normalized();
     R.col(1) = T.col(1).normalized();
     R.col(2) = R.col(0).cross(R.col(1));
+
+    if(z_up) {
+        // rotate by half rotation about x-axis
+        R.col(1) *= -1;
+        R.col(2) *= -1;
+    }
 
     // the corner coordinates of the tag in the canonical frame are (+/-1, +/-1)
     // hence the scale is half of the edge size
