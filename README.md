@@ -55,7 +55,7 @@ The parameters `family` and `size` are required. `family` (string) defines the t
 
 The remaining parameters are set to the their default values from the library. See `apriltag.h` for a more detailed description of their function.
 
-See [tags_16h5_all.yaml](cfg/tags_16h5_all.yaml) for an example configuration that publishes all markers in the 16h5 family and [tags_16h5_filtered.yaml](cfg/tags_16h5_filtered.yaml) for filtering tags.
+See [tags_16h5_all.yaml](node/cfg/tags_16h5_all.yaml) for an example configuration that publishes all markers in the 16h5 family and [tags_16h5_filtered.yaml](node/cfg/tags_16h5_filtered.yaml) for filtering tags.
 
 To run the node and load the configuration, pass the configuration file to `__params`:
 ```bash
