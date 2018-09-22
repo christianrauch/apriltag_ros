@@ -41,4 +41,6 @@ install(TARGETS
 
 install(TARGETS apriltag2_node DESTINATION lib/${PROJECT_NAME})
 
+install(DIRECTORY cfg/ DESTINATION share/${PROJECT_NAME}/cfg)
+
 ament_package()

@@ -62,5 +62,5 @@ To run the node and load the configuration, pass the configuration file to `__pa
 ros2 run apriltag2_node apriltag2_node \
     /apriltag/image/compressed:=/camera/image/compressed \
     /apriltag/image/camera_info:=/camera/image/camera_info \
-    __params:=$WORKSPACE/src/apriltag2_node/cfg/tags_16h5_all.yaml
+    __params:=`ros2 pkg prefix apriltag2_node`/share/apriltag2_node/cfg/tags_16h5_all.yaml
 ```
