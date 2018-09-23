@@ -10,7 +10,7 @@
 
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
-  <depend>geometry_msgs</depend>
+  <depend>tf2_msgs</depend>
   <depend>apriltag_msgs</depend>
   <depend>apriltag</depend>
 

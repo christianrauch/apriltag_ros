@@ -11,7 +11,7 @@ For more information on AprilTag 2, the paper and the reference implementation: 
 - `/apriltag/image/camera_info` (type: `sensor_msgs/CameraInfo`)
 
 ### Publisher:
-- `/tf` (type: `geometry_msgs/TransformStamped`)
+- `/tf` (type: `tf2_msgs/TFMessage`)
 - `/apriltag/detections` (type: `apriltag_msgs/AprilTagDetectionArray`)
 
 The camera intrinsics `K` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The node sets `K` from the first `CameraInfo` message and unsubscribes after this.

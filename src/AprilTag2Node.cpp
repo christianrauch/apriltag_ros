@@ -15,7 +15,9 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
     sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
         std::bind(&AprilTag2Node::onImage, this, std::placeholders::_1),
         rmw_qos_profile_sensor_data);
-    pub_pose = this->create_publisher<geometry_msgs::msg::TransformStamped>("/tf");
+    rmw_qos_profile_t tf_qos_profile = rmw_qos_profile_default;
+    tf_qos_profile.depth = 100;
+    pub_tf = this->create_publisher<tf2_msgs::msg::TFMessage>("/tf", tf_qos_profile);
     pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
     // get single camera info message
@@ -96,6 +98,8 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
     apriltag_msgs::msg::AprilTagDetectionArray msg_detections;
     msg_detections.header = msg_img->header;
 
+    tf2_msgs::msg::TFMessage tfs;
+
     for (int i = 0; i < zarray_size(detections); i++) {
         apriltag_detection_t* det;
         zarray_get(detections, i, &det);
@@ -126,10 +130,11 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         tf.child_frame_id = tracked_tags.size() ? tracked_tags.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id) ;
         getPose(*(det->H), tf.transform, z_up);
 
-        pub_pose->publish(tf);
+        tfs.transforms.push_back(tf);
     }
 
     pub_detections->publish(msg_detections);
+    pub_tf->publish(tfs);
 
     apriltag_detections_destroy(detections);
 
