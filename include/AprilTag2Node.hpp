@@ -12,17 +12,7 @@
 #include <apriltag.h>
 #include <common/pjpeg.h>
 
-// default tag families
-#include <tag16h5.h>
-#include <tag25h7.h>
-#include <tag25h9.h>
-#include <tag36h10.h>
-#include <tag36h11.h>
-#include <tag36artoolkit.h>
-
-#include <iomanip>
 #include <Eigen/Core>
-#include <Eigen/Dense>
 
 
 class AprilTag2Node : public rclcpp::Node {

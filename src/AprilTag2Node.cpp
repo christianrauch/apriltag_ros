@@ -1,6 +1,16 @@
 #include <AprilTag2Node.hpp>
 #include <class_loader/register_macro.hpp>
 
+// default tag families
+#include <tag16h5.h>
+#include <tag25h7.h>
+#include <tag25h9.h>
+#include <tag36h10.h>
+#include <tag36h11.h>
+#include <tag36artoolkit.h>
+
+#include <Eigen/Dense>
+
 AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
     sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
         std::bind(&AprilTag2Node::onImage, this, std::placeholders::_1),
