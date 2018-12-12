@@ -13,6 +13,7 @@
   <depend>tf2_msgs</depend>
   <depend>apriltag_msgs</depend>
   <depend>apriltag</depend>
+  <depend>class_loader</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
