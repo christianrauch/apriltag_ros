@@ -16,7 +16,7 @@ For more information on AprilTag 2, the paper and the reference implementation: 
 
 The camera intrinsics `K` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The node sets `K` from the first `CameraInfo` message and unsubscribes after this.
 
-The tag poses are published on the standard TF topic `/tf` with the header set to the image header and `child_frame_id` set to either `<tag_family>:<id>` (e.g. "36h11:0") or the frame name selected via configuration file. Additional information about detected tag is published as `AprilTagDetectionArray` message, which contains the original homography  matrix, the `goodness` and the `decision_margin` of the detection.
+The tag poses are published on the standard TF topic `/tf` with the header set to the image header and `child_frame_id` set to either `<tag_family>:<id>` (e.g. "36h11:0") or the frame name selected via configuration file. Additional information about detected tags is published as `AprilTagDetectionArray` message, which contains the original homography  matrix, the `hamming` distance and the `decision_margin` of the detection.
 
 ## Configuration
 
@@ -38,8 +38,6 @@ apriltag:                           # namespace
             blur: 0.0               # sigma of Gaussian blur for quad detection
             refine-edges: 1         # snap to strong gradients
             threads: 1              # number of threads
-            refine-decode: 0        # increase the number of detected tags
-            refine-pose: 0          # increase the accuracy of the extracted pose
             debug: 0                # write additional debugging images to current working directory
 
             # (optional) list of tags

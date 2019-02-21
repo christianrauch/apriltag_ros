@@ -3,11 +3,8 @@
 
 // default tag families
 #include <tag16h5.h>
-#include <tag25h7.h>
 #include <tag25h9.h>
-#include <tag36h10.h>
 #include <tag36h11.h>
-#include <tag36artoolkit.h>
 
 #include <Eigen/Dense>
 
@@ -55,8 +52,6 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
     get_parameter_or<int>("threads", td->nthreads, 1);
     get_parameter_or<int>("debug", td->debug, false);
     get_parameter_or<int>("refine-edges", td->refine_edges, true);
-    get_parameter_or<int>("refine-decode", td->refine_decode, false);
-    get_parameter_or<int>("refine-pose", td->refine_pose, false);
     apriltag_detector_add_family(td, tf);
 }
 
@@ -115,7 +110,6 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
         msg_detection.family = std::string(det->family->name);
         msg_detection.id = det->id;
         msg_detection.hamming = det->hamming;
-        msg_detection.goodness = det->goodness;
         msg_detection.decision_margin = det->decision_margin;
         msg_detection.centre.x = det->c[0];
         msg_detection.centre.y = det->c[1];
@@ -178,21 +172,15 @@ void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, c
 std::map<std::string, apriltag_family_t *(*)(void)> AprilTag2Node::tag_create =
 {
     {"16h5", tag16h5_create},
-    {"25h7", tag25h7_create},
     {"25h9", tag25h9_create},
-    {"36h10", tag36h10_create},
     {"36h11", tag36h11_create},
-    {"36artoolkit", tag36artoolkit_create},
 };
 
 std::map<std::string, void (*)(apriltag_family_t*)> AprilTag2Node::tag_destroy =
 {
     {"16h5", tag16h5_destroy},
-    {"25h7", tag25h7_destroy},
     {"25h9", tag25h9_destroy},
-    {"36h10", tag36h10_destroy},
     {"36h11", tag36h11_destroy},
-    {"36artoolkit", tag36artoolkit_destroy},
 };
 
 CLASS_LOADER_REGISTER_CLASS(AprilTag2Node, rclcpp::Node)
