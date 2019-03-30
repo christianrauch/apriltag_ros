@@ -15,16 +15,13 @@ INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
 
 find_package(Threads REQUIRED)
 
-find_package(PkgConfig)
-pkg_search_module(apriltag REQUIRED apriltag)
-include_directories(${apriltag_INCLUDE_DIRS}/apriltag)
-link_directories(${apriltag_LIBDIR})
+find_package(apriltag REQUIRED)
 
 include_directories(include)
 
 add_library(AprilTag2Node SHARED src/AprilTag2Node.cpp)
 ament_target_dependencies(AprilTag2Node rclcpp sensor_msgs apriltag_msgs class_loader tf2_msgs)
-target_link_libraries(AprilTag2Node ${apriltag_LIBRARIES})
+target_link_libraries(AprilTag2Node apriltag)
 rclcpp_register_node_plugins(AprilTag2Node "AprilTag2Node")
 
 add_executable(apriltag2_node src/apriltag2_node.cpp)
