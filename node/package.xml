@@ -16,6 +16,8 @@
   <depend>apriltag_msgs</depend>
   <depend>apriltag</depend>
   <depend>class_loader</depend>
+  <depend>image_transport</depend>
+  <depend>cv_bridge</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -2,15 +2,16 @@
 
 // ros
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include <sensor_msgs/msg/image.hpp>
 #include <apriltag_msgs/msg/april_tag_detection.hpp>
 #include <apriltag_msgs/msg/april_tag_detection_array.hpp>
 #include <tf2_msgs/msg/tf_message.hpp>
 
+#include <image_transport/camera_subscriber.h>
+
 // apriltag
 #include <apriltag.h>
-#include <common/pjpeg.h>
 
 #include <Eigen/Core>
 
@@ -39,12 +40,11 @@ private:
     static std::map<std::string, apriltag_family_t *(*)(void)> tag_create;
     static std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy;
 
-    rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr sub_img;
-    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info;
+    image_transport::CameraSubscriber sub_cam;
     rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr pub_tf;
     rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
 
-    void onImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg_img);
+    void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
 
     void getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const bool z_up = false);
 };

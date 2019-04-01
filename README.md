@@ -7,14 +7,16 @@ For more information on AprilTag 2, the paper and the reference implementation: 
 ## Topics
 
 ### Subscriptions:
-- `/apriltag/image/compressed` (type: `sensor_msgs/CompressedImage`, format: `"jpeg"` or `"jpg"`)
-- `/apriltag/image/camera_info` (type: `sensor_msgs/CameraInfo`)
+The node subscribes via a `image_transport::CameraSubscriber` to `/apriltag/image`. The set of topic names depends on the type of image transport (parameter `image_transport`) selected (`raw` or `compressed`):
+- `/apriltag/image` (`raw`, type: `sensor_msgs/Image`)
+- `/apriltag/image/compressed` (`compressed`, type: `sensor_msgs/CompressedImage`)
+- `/apriltag/camera_info` (type: `sensor_msgs/CameraInfo`)
 
 ### Publisher:
 - `/tf` (type: `tf2_msgs/TFMessage`)
 - `/apriltag/detections` (type: `apriltag_msgs/AprilTagDetectionArray`)
 
-The camera intrinsics `K` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The node sets `K` from the first `CameraInfo` message and unsubscribes after this.
+The camera intrinsics `K` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The image and the camera intrinsics need to have the same timestamp.
 
 The tag poses are published on the standard TF topic `/tf` with the header set to the image header and `child_frame_id` set to either `<tag_family>:<id>` (e.g. "36h11:0") or the frame name selected via configuration file. Additional information about detected tags is published as `AprilTagDetectionArray` message, which contains the original homography  matrix, the `hamming` distance and the `decision_margin` of the detection.
 
@@ -28,9 +30,10 @@ apriltag:                           # namespace
     apriltag2:                      # node name
         ros__parameters:
             # required
-            family: <tag family>    # tag family name
-            size: <tag edge size>   # tag edge size in meter
-            z_up: true              # rotate about x-axis to have Z pointing upwards
+            image_transport: raw    # image format: "raw" or "compressed" (default: raw)
+            family: <tag family>    # tag family name: 16h5, 25h9, 36h11 (default: 36h11)
+            size: <tag edge size>   # tag edge size in meter (default: 2.0)
+            z_up: true              # rotate about x-axis to have Z pointing upwards (default: false)
 
             # (optional) tuning of detection
             max_hamming: 0          # maximum allowed hamming distance (corrected bits)
@@ -58,7 +61,7 @@ See [tags_16h5_all.yaml](node/cfg/tags_16h5_all.yaml) for an example configurati
 To run the node and load the configuration, pass the configuration file to `__params`:
 ```bash
 ros2 run apriltag2_node apriltag2_node \
-    /apriltag/image/compressed:=/camera/image/compressed \
-    /apriltag/image/camera_info:=/camera/image/camera_info \
+    /apriltag/image:=/camera/image \
+    /apriltag/camera_info:=/camera/camera_info \
     __params:=`ros2 pkg prefix apriltag2_node`/share/apriltag2_node/cfg/tags_16h5_all.yaml
 ```

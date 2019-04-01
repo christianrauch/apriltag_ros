@@ -1,7 +1,8 @@
 apriltag:
     apriltag2:
         ros__parameters:
-            family: 16h5            # tag family, one of 16h5, 25h7, 25h9, 36h10, 36h11, 36artoolkit
+            image_transport: raw    # image format
+            family: 16h5            # tag family name
             size: 0.162             # tag edge size in meter
             max_hamming: 0          # maximum allowed hamming distance (corrected bits)
             z_up: true              # rotate about x-axis to have Z pointing upwards

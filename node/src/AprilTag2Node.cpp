@@ -1,32 +1,30 @@
 #include <AprilTag2Node.hpp>
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
 #include <class_loader/register_macro.hpp>
 
 // default tag families
-#include <tag16h5.h>
-#include <tag25h9.h>
-#include <tag36h11.h>
+#include "tag36h11.h"
+#include "tag25h9.h"
+#include "tag16h5.h"
+#include "tagCircle21h7.h"
+#include "tagCircle49h12.h"
+#include "tagCustom48h12.h"
+#include "tagStandard41h12.h"
+#include "tagStandard52h13.h"
 
 #include <Eigen/Dense>
 
 AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
-    sub_img = this->create_subscription<sensor_msgs::msg::CompressedImage>("image/compressed",
-        std::bind(&AprilTag2Node::onImage, this, std::placeholders::_1),
-        rmw_qos_profile_sensor_data);
     rmw_qos_profile_t tf_qos_profile = rmw_qos_profile_default;
     tf_qos_profile.depth = 100;
     pub_tf = this->create_publisher<tf2_msgs::msg::TFMessage>("/tf", tf_qos_profile);
     pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
-    // get single camera info message
-    sub_info = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "image/camera_info",
-        [this](sensor_msgs::msg::CameraInfo::UniquePtr info){
-            RCLCPP_INFO(get_logger(), "got camera parameters");
-            std::memcpy(K.data(), info->k.data(), 9*sizeof(double));
-            // delete subscription
-            sub_info.reset();
-        }
-    );
+    std::string image_transport;
+    get_parameter_or<std::string>("image_transport", image_transport, "raw");
+
+    sub_cam = image_transport::create_camera_subscription(this, "image", std::bind(&AprilTag2Node::onCamera, this, std::placeholders::_1, std::placeholders::_2), image_transport, rmw_qos_profile_sensor_data);
 
     get_parameter_or<std::string>("family", tag_family, "36h11");
     get_parameter_or<double>("size", tag_edge_size, 2.0);
@@ -60,35 +58,22 @@ AprilTag2Node::~AprilTag2Node() {
     tag_destroy.at(tag_family)(tf);
 }
 
-void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr msg_img) {
-    // decode image
-    image_u8_t* im = nullptr;
+void AprilTag2Node::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci) {
+    // copy camera intrinsics
+    std::memcpy(K.data(), msg_ci->k.data(), 9*sizeof(double));
 
-    if(msg_img->format=="jpeg" || msg_img->format=="jpg") {
-        // convert jpeg data
-        int err = 0;
-        pjpeg_t* pj = pjpeg_create_from_buffer(msg_img->data.data(), msg_img->data.size(), 0, &err);
-        if(pj==nullptr) {
-            RCLCPP_ERROR(get_logger(), "pjpeg error");
-            return;
-        }
+    // convert to 8bit monochrome image
+    const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
 
-        im = pjpeg_to_u8_baseline(pj);
+    image_u8_t im = {
+        .width = img_uint8.cols,
+        .height = img_uint8.rows,
+        .stride = img_uint8.cols,
+        .buf = img_uint8.data
+    };
 
-        pjpeg_destroy(pj);
-    }
-    else {
-        RCLCPP_ERROR(get_logger(), "not supported: %s",  msg_img->format.c_str());
-        return;
-    }
-
-    if (im==nullptr) {
-        RCLCPP_ERROR(get_logger(), "could not load image");
-        return;
-    }
-
-    // decode image
-    zarray_t* detections = apriltag_detector_detect(td, im);
+    // detect tags
+    zarray_t* detections = apriltag_detector_detect(td, &im);
 
     apriltag_msgs::msg::AprilTagDetectionArray msg_detections;
     msg_detections.header = msg_img->header;
@@ -131,8 +116,6 @@ void AprilTag2Node::onImage(const sensor_msgs::msg::CompressedImage::SharedPtr m
     pub_tf->publish(tfs);
 
     apriltag_detections_destroy(detections);
-
-    image_u8_destroy(im);
 }
 
 void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const bool z_up) {
