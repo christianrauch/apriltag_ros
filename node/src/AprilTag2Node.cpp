@@ -1,19 +1,46 @@
 #include <AprilTag2Node.hpp>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
-#include <class_loader/register_macro.hpp>
 
 // default tag families
-#include "tag36h11.h"
-#include "tag25h9.h"
-#include "tag16h5.h"
-#include "tagCircle21h7.h"
-#include "tagCircle49h12.h"
-#include "tagCustom48h12.h"
-#include "tagStandard41h12.h"
-#include "tagStandard52h13.h"
+#include <tag16h5.h>
+#include <tag25h9.h>
+#include <tag36h11.h>
+#include <tagCircle21h7.h>
+#include <tagCircle49h12.h>
+#include <tagCustom48h12.h>
+#include <tagStandard41h12.h>
+#include <tagStandard52h13.h>
 
 #include <Eigen/Dense>
+
+// create and delete functions for default tags
+#define TAG_CREATE(name) { #name, tag##name##_create },
+#define TAG_DESTROY(name) { #name, tag##name##_destroy },
+
+std::map<std::string, apriltag_family_t *(*)(void)> AprilTag2Node::tag_create =
+{
+    TAG_CREATE(36h11)
+    TAG_CREATE(25h9)
+    TAG_CREATE(16h5)
+    TAG_CREATE(Circle21h7)
+    TAG_CREATE(Circle49h12)
+    TAG_CREATE(Custom48h12)
+    TAG_CREATE(Standard41h12)
+    TAG_CREATE(Standard52h13)
+};
+
+std::map<std::string, void (*)(apriltag_family_t*)> AprilTag2Node::tag_destroy =
+{
+    TAG_DESTROY(36h11)
+    TAG_DESTROY(25h9)
+    TAG_DESTROY(16h5)
+    TAG_DESTROY(Circle21h7)
+    TAG_DESTROY(Circle49h12)
+    TAG_DESTROY(Custom48h12)
+    TAG_DESTROY(Standard41h12)
+    TAG_DESTROY(Standard52h13)
+};
 
 AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
     rmw_qos_profile_t tf_qos_profile = rmw_qos_profile_default;
@@ -152,18 +179,5 @@ void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, c
     t.rotation.z = q.z();
 }
 
-std::map<std::string, apriltag_family_t *(*)(void)> AprilTag2Node::tag_create =
-{
-    {"16h5", tag16h5_create},
-    {"25h9", tag25h9_create},
-    {"36h11", tag36h11_create},
-};
-
-std::map<std::string, void (*)(apriltag_family_t*)> AprilTag2Node::tag_destroy =
-{
-    {"16h5", tag16h5_destroy},
-    {"25h9", tag25h9_destroy},
-    {"36h11", tag36h11_destroy},
-};
-
+#include <class_loader/register_macro.hpp>
 CLASS_LOADER_REGISTER_CLASS(AprilTag2Node, rclcpp::Node)
