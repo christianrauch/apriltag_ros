@@ -11,11 +11,11 @@
   <build_depend>eigen</build_depend>
 
   <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
   <depend>sensor_msgs</depend>
   <depend>tf2_msgs</depend>
   <depend>apriltag_msgs</depend>
   <depend>apriltag</depend>
-  <depend>class_loader</depend>
   <depend>image_transport</depend>
   <depend>cv_bridge</depend>
 

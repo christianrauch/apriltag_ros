@@ -18,7 +18,7 @@
 
 class AprilTag2Node : public rclcpp::Node {
 public:
-    AprilTag2Node();
+    AprilTag2Node(const rclcpp::NodeOptions options = rclcpp::NodeOptions());
 
     ~AprilTag2Node();
 

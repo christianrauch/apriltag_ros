@@ -42,20 +42,32 @@ std::map<std::string, void (*)(apriltag_family_t*)> AprilTag2Node::tag_destroy =
     TAG_DESTROY(Standard52h13)
 };
 
-AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
+AprilTag2Node::AprilTag2Node(rclcpp::NodeOptions options) : Node("apriltag2", "apriltag", options.use_intra_process_comms(true)) {
     rmw_qos_profile_t tf_qos_profile = rmw_qos_profile_default;
     tf_qos_profile.depth = 100;
     pub_tf = this->create_publisher<tf2_msgs::msg::TFMessage>("/tf", tf_qos_profile);
     pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
 
+    // declare parameters
+    declare_parameter<std::string>("image_transport", "raw");
+    declare_parameter<std::string>("family", "36h11");
+    declare_parameter<double>("size", 2.0);
+    declare_parameter<int>("max_hamming", 0);
+    declare_parameter<bool>("z_up", false);
+    declare_parameter<float>("decimate", 1.0);
+    declare_parameter<float>("blur", 0.0);
+    declare_parameter<int>("threads", 1);
+    declare_parameter<int>("debug", false);
+    declare_parameter<int>("refine-edges", true);
+
     std::string image_transport;
-    get_parameter_or<std::string>("image_transport", image_transport, "raw");
+    get_parameter<std::string>("image_transport", image_transport);
 
     sub_cam = image_transport::create_camera_subscription(this, "image", std::bind(&AprilTag2Node::onCamera, this, std::placeholders::_1, std::placeholders::_2), image_transport, rmw_qos_profile_sensor_data);
 
-    get_parameter_or<std::string>("family", tag_family, "36h11");
-    get_parameter_or<double>("size", tag_edge_size, 2.0);
-    get_parameter_or<int>("max_hamming", max_hamming, 0);
+    get_parameter<std::string>("family", tag_family);
+    get_parameter<double>("size", tag_edge_size);
+    get_parameter<int>("max_hamming", max_hamming);
 
     // get tag names and IDs
     static const std::string tag_list_prefix = "tag_lists";
@@ -65,18 +77,18 @@ AprilTag2Node::AprilTag2Node() : Node("apriltag2", "apriltag", true) {
         tracked_tags[id] = name.substr(tag_list_prefix.size()+1, name.size());
     }
 
-    get_parameter_or<bool>("z_up", z_up, false);
+    get_parameter<bool>("z_up", z_up);
 
     if(!tag_create.count(tag_family)) {
         throw std::runtime_error("unsupported tag family: "+tag_family);
     }
     tf = tag_create.at(tag_family)();
     td = apriltag_detector_create();
-    get_parameter_or<float>("decimate", td->quad_decimate, 1.0);
-    get_parameter_or<float>("blur", td->quad_sigma, 0.0);
-    get_parameter_or<int>("threads", td->nthreads, 1);
-    get_parameter_or<int>("debug", td->debug, false);
-    get_parameter_or<int>("refine-edges", td->refine_edges, true);
+    get_parameter<float>("decimate", td->quad_decimate);
+    get_parameter<float>("blur", td->quad_sigma);
+    get_parameter<int>("threads", td->nthreads);
+    get_parameter<int>("debug", td->debug);
+    get_parameter<int>("refine-edges", td->refine_edges);
     apriltag_detector_add_family(td, tf);
 }
 
@@ -179,5 +191,5 @@ void AprilTag2Node::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, c
     t.rotation.z = q.z();
 }
 
-#include <class_loader/register_macro.hpp>
-CLASS_LOADER_REGISTER_CLASS(AprilTag2Node, rclcpp::Node)
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(AprilTag2Node)
