@@ -58,10 +58,14 @@ The remaining parameters are set to the their default values from the library. S
 
 See [tags_16h5_all.yaml](node/cfg/tags_16h5_all.yaml) for an example configuration that publishes all markers in the 16h5 family and [tags_16h5_filtered.yaml](node/cfg/tags_16h5_filtered.yaml) for filtering tags.
 
-To run the node and load the configuration, pass the configuration file to `__params`:
+The composable node can be loaded into an already running component manager with a configuration file, by passing the configuration file path to `__params`:
 ```bash
-ros2 run apriltag_ros apriltag_node \
-    /apriltag/image:=/camera/image \
-    /apriltag/camera_info:=/camera/camera_info \
-    __params:=`ros2 pkg prefix apriltag_ros`/share/apriltag_ros/cfg/tags_16h5_all.yaml
+ros2 component load /ComponentManager apriltag_ros AprilTagNode \
+    -r /apriltag/image:=/camera/image \
+    -r /apriltag/camera_info:=/camera/camera_info \
+    -r __params:=`ros2 pkg prefix apriltag_ros`/share/apriltag_ros/cfg/tags_16h5_all.yaml
+```
+A component manager can be started via:
+```bash
+ros2 run rclcpp_components component_container
 ```
