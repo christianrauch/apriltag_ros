@@ -1,8 +1,8 @@
-# AprilTag 2 ROS2 Node
+# AprilTag ROS2 Node
 
-This ROS2 node uses the AprilTag 2 library to detect AprilTags in images and publish their pose, id and additional metadata.
+This ROS2 node uses the AprilTag library to detect AprilTags in images and publish their pose, id and additional metadata.
 
-For more information on AprilTag 2, the paper and the reference implementation: https://april.eecs.umich.edu/software/apriltag.html
+For more information on AprilTag, the paper and the reference implementation: https://april.eecs.umich.edu/software/apriltag.html
 
 ## Topics
 
@@ -27,7 +27,7 @@ The node is configured via a yaml configurations file. For the complete ROS yaml
 The file has the format:
 ```YAML
 apriltag:                           # namespace
-    apriltag2:                      # node name
+    apriltag:                       # node name
         ros__parameters:
             # required
             image_transport: raw    # image format: "raw" or "compressed" (default: raw)
@@ -60,8 +60,8 @@ See [tags_16h5_all.yaml](node/cfg/tags_16h5_all.yaml) for an example configurati
 
 To run the node and load the configuration, pass the configuration file to `__params`:
 ```bash
-ros2 run apriltag2_node apriltag2_node \
+ros2 run apriltag_ros apriltag_node \
     /apriltag/image:=/camera/image \
     /apriltag/camera_info:=/camera/camera_info \
-    __params:=`ros2 pkg prefix apriltag2_node`/share/apriltag2_node/cfg/tags_16h5_all.yaml
+    __params:=`ros2 pkg prefix apriltag_ros`/share/apriltag_ros/cfg/tags_16h5_all.yaml
 ```

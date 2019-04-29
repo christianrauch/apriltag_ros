@@ -1,5 +1,5 @@
 apriltag:
-    apriltag2:
+    apriltag:
         ros__parameters:
             image_transport: raw    # image format
             family: 36h11           # tag family name

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(apriltag2_node)
+project(apriltag_ros)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -21,24 +21,23 @@ find_package(apriltag REQUIRED)
 
 include_directories(include)
 
-add_library(AprilTag2Node SHARED src/AprilTag2Node.cpp)
-ament_target_dependencies(AprilTag2Node rclcpp rclcpp_components sensor_msgs apriltag_msgs tf2_msgs image_transport cv_bridge)
-target_link_libraries(AprilTag2Node apriltag)
-rclcpp_components_register_nodes(AprilTag2Node "AprilTag2Node")
+add_library(AprilTagNode SHARED src/AprilTagNode.cpp)
+ament_target_dependencies(AprilTagNode rclcpp rclcpp_components sensor_msgs apriltag_msgs tf2_msgs image_transport cv_bridge)
+target_link_libraries(AprilTagNode apriltag)
+rclcpp_components_register_nodes(AprilTagNode "AprilTagNode")
 
-add_executable(apriltag2_node src/apriltag2_node.cpp)
-target_link_libraries(apriltag2_node AprilTag2Node)
+add_executable(apriltag_node src/apriltag_node.cpp)
+target_link_libraries(apriltag_node AprilTagNode)
 
 ament_environment_hooks(${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH})
 
-install(TARGETS
-    AprilTag2Node
+install(TARGETS AprilTagNode
+    EXPORT export_${PROJECT_NAME}
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
-    RUNTIME DESTINATION bin
 )
 
-install(TARGETS apriltag2_node DESTINATION lib/${PROJECT_NAME})
+install(TARGETS apriltag_node DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY cfg/ DESTINATION share/${PROJECT_NAME}/cfg)
 

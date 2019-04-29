@@ -16,11 +16,11 @@
 #include <Eigen/Core>
 
 
-class AprilTag2Node : public rclcpp::Node {
+class AprilTagNode : public rclcpp::Node {
 public:
-    AprilTag2Node(const rclcpp::NodeOptions options = rclcpp::NodeOptions());
+    AprilTagNode(const rclcpp::NodeOptions options = rclcpp::NodeOptions());
 
-    ~AprilTag2Node();
+    ~AprilTagNode();
 
 private:
     typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;

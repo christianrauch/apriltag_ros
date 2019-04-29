@@ -1,5 +1,5 @@
 apriltag:
-    apriltag2:
+    apriltag:
         ros__parameters:
             family: 16h5            # tag family, one of 16h5, 25h7, 25h9, 36h10, 36h11, 36artoolkit
             size: 0.162             # tag edge size in meter
