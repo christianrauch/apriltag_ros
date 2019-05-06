@@ -69,3 +69,8 @@ A component manager can be started via:
 ```bash
 ros2 run rclcpp_components component_container
 ```
+
+Alternatively, a launch file can be used to start a component manager and load the composable node with configuration:
+```bash
+ros2 launch apriltag_ros tag_16h5_all.launch.py
+```
