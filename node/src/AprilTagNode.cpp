@@ -43,10 +43,8 @@ std::map<std::string, void (*)(apriltag_family_t*)> AprilTagNode::tag_destroy =
 };
 
 AprilTagNode::AprilTagNode(rclcpp::NodeOptions options) : Node("apriltag", "apriltag", options.use_intra_process_comms(true)) {
-    rmw_qos_profile_t tf_qos_profile = rmw_qos_profile_default;
-    tf_qos_profile.depth = 100;
-    pub_tf = this->create_publisher<tf2_msgs::msg::TFMessage>("/tf", tf_qos_profile);
-    pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections");
+    pub_tf = this->create_publisher<tf2_msgs::msg::TFMessage>("/tf", rclcpp::QoS(100));
+    pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1));
 
     // declare parameters
     declare_parameter<std::string>("image_transport", "raw");
