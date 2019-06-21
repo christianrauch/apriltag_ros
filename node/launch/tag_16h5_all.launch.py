@@ -13,17 +13,17 @@ cfg_16h5 = {
 
 def generate_launch_description():
     composable_node = ComposableNode(
-            node_name='apriltag',
-            package='apriltag_ros', node_plugin='AprilTagNode',
-            remappings=[("/apriltag/image", "/camera/image"), ("/apriltag/camera_info", "/camera/camera_info")],
-            parameters=[cfg_16h5])
+        node_name='apriltag',
+        package='apriltag_ros', node_plugin='AprilTagNode',
+        remappings=[("/apriltag/image", "/camera/image"), ("/apriltag/camera_info", "/camera/camera_info")],
+        parameters=[cfg_16h5])
     container = ComposableNodeContainer(
-            node_name='tag_container',
-            node_namespace='apriltag',
-            package='rclcpp_components',
-            node_executable='component_container',
-            composable_node_descriptions=[composable_node],
-            output='screen'
+        node_name='tag_container',
+        node_namespace='apriltag',
+        package='rclcpp_components',
+        node_executable='component_container',
+        composable_node_descriptions=[composable_node],
+        output='screen'
     )
 
     return launch.LaunchDescription([container])
