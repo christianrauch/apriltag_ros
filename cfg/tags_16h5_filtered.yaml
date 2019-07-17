@@ -15,7 +15,7 @@ apriltag:
             refine-pose: 0          # increase the accuracy of the extracted pose
             debug: 0                # write additional debugging images to current working directory
 
-            # optional list of tag IDs and their frame names
-            tag_lists:
-                base: 9
-                object: 14
+            # optional list of tags
+            tag_ids: [9, 14]            # tag ID
+            tag_frames: [base, object]  # optional frame name
+            tag_sizes: [0.162, 0.162]   # optional tag-specific edge size

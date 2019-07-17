@@ -26,11 +26,12 @@ private:
     typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
 
     apriltag_family_t* tf;
-    std::map<int, std::string> tracked_tags;
     apriltag_detector_t* const td;
     const std::string tag_family;
     const double tag_edge_size;
     const int max_hamming;
+    std::unordered_map<int, std::string> tag_frames;
+    std::unordered_map<int, double> tag_sizes;
 
     Mat3 K;
 
@@ -46,5 +47,5 @@ private:
 
     void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
 
-    void getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const bool z_up = false);
+    void getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const double size) const;
 };

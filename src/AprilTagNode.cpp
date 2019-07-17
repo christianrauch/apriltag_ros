@@ -61,12 +61,24 @@ AprilTagNode::AprilTagNode(rclcpp::NodeOptions options)
     td->debug =         declare_parameter<int>("debug", false);
     td->refine_edges =  declare_parameter<int>("refine-edges", true);
 
-    // get tag names and IDs
-    static const std::string tag_list_prefix = "tag_lists";
-    auto parameters_and_prefixes = list_parameters({tag_list_prefix}, 10);
-    for (const std::string &name : parameters_and_prefixes.names) {
-        const int id = get_parameter(name).get_value<int>();
-        tracked_tags[id] = name.substr(tag_list_prefix.size()+1, name.size());
+    // get tag names, IDs and sizes
+    const auto ids = declare_parameter<std::vector<int64_t>>("tag_ids", {});
+    const auto frames = declare_parameter<std::vector<std::string>>("tag_frames", {});
+
+    if(!frames.empty()) {
+        if(ids.size()!=frames.size()) {
+            throw std::runtime_error("Number of tag ids ("+std::to_string(ids.size())+") and frames ("+std::to_string(frames.size())+") mismatch!");
+        }
+        for(size_t i = 0; i<ids.size(); i++) { tag_frames[ids[i]] = frames[i]; }
+    }
+
+    const auto sizes = declare_parameter<std::vector<double>>("tag_sizes", {});
+    if(!sizes.empty()) {
+        // use tag specific size
+        if(ids.size()!=sizes.size()) {
+            throw std::runtime_error("Number of tag ids ("+std::to_string(ids.size())+") and sizes ("+std::to_string(sizes.size())+") mismatch!");
+        }
+        for(size_t i = 0; i<ids.size(); i++) { tag_sizes[ids[i]] = sizes[i]; }
     }
 
     if(tag_create.count(tag_family)) {
@@ -110,7 +122,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         zarray_get(detections, i, &det);
 
         // ignore untracked tags
-        if(tracked_tags.size()>0 && !tracked_tags.count(det->id)) { continue; }
+        if(!tag_frames.empty() && !tag_frames.count(det->id)) { continue; }
 
         // reject detections with more corrected bits than allowed
         if(det->hamming>max_hamming) { continue; }
@@ -131,8 +143,8 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         geometry_msgs::msg::TransformStamped tf;
         tf.header = msg_img->header;
         // set child frame name by generic tag name or configured tag name
-        tf.child_frame_id = tracked_tags.size() ? tracked_tags.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id) ;
-        getPose(*(det->H), tf.transform, z_up);
+        tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id);
+        getPose(*(det->H), tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size);
 
         tfs.transforms.push_back(tf);
     }
@@ -143,7 +155,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     apriltag_detections_destroy(detections);
 }
 
-void AprilTagNode::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const bool z_up) {
+void AprilTagNode::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const double size) const {
 
     const Eigen::Map<const Mat3>Hm(H.data);
 
@@ -164,7 +176,7 @@ void AprilTagNode::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, co
 
     // the corner coordinates of the tag in the canonical frame are (+/-1, +/-1)
     // hence the scale is half of the edge size
-    const Eigen::Vector3d tt = T.rightCols<1>() / ((T.col(0).norm() + T.col(0).norm())/2.0) * (tag_edge_size/2.0);
+    const Eigen::Vector3d tt = T.rightCols<1>() / ((T.col(0).norm() + T.col(0).norm())/2.0) * (size/2.0);
 
     const Eigen::Quaterniond q(R);
 
