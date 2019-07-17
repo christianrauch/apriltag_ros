@@ -18,7 +18,7 @@
 #define TAG_CREATE(name) { #name, tag##name##_create },
 #define TAG_DESTROY(name) { #name, tag##name##_destroy },
 
-std::map<std::string, apriltag_family_t *(*)(void)> AprilTagNode::tag_create =
+const std::map<std::string, apriltag_family_t *(*)(void)> AprilTagNode::tag_create =
 {
     TAG_CREATE(36h11)
     TAG_CREATE(25h9)
@@ -30,7 +30,7 @@ std::map<std::string, apriltag_family_t *(*)(void)> AprilTagNode::tag_create =
     TAG_CREATE(Standard52h13)
 };
 
-std::map<std::string, void (*)(apriltag_family_t*)> AprilTagNode::tag_destroy =
+const std::map<std::string, void (*)(apriltag_family_t*)> AprilTagNode::tag_destroy =
 {
     TAG_DESTROY(36h11)
     TAG_DESTROY(25h9)
@@ -42,30 +42,24 @@ std::map<std::string, void (*)(apriltag_family_t*)> AprilTagNode::tag_destroy =
     TAG_DESTROY(Standard52h13)
 };
 
-AprilTagNode::AprilTagNode(rclcpp::NodeOptions options) : Node("apriltag", "apriltag", options.use_intra_process_comms(true)) {
-    pub_tf = this->create_publisher<tf2_msgs::msg::TFMessage>("/tf", rclcpp::QoS(100));
-    pub_detections = this->create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1));
-
-    // declare parameters
-    declare_parameter<std::string>("image_transport", "raw");
-    declare_parameter<std::string>("family", "36h11");
-    declare_parameter<double>("size", 2.0);
-    declare_parameter<int>("max_hamming", 0);
-    declare_parameter<bool>("z_up", false);
-    declare_parameter<float>("decimate", 1.0);
-    declare_parameter<float>("blur", 0.0);
-    declare_parameter<int>("threads", 1);
-    declare_parameter<int>("debug", false);
-    declare_parameter<int>("refine-edges", true);
-
-    std::string image_transport;
-    get_parameter<std::string>("image_transport", image_transport);
-
-    sub_cam = image_transport::create_camera_subscription(this, "image", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), image_transport, rmw_qos_profile_sensor_data);
-
-    get_parameter<std::string>("family", tag_family);
-    get_parameter<double>("size", tag_edge_size);
-    get_parameter<int>("max_hamming", max_hamming);
+AprilTagNode::AprilTagNode(rclcpp::NodeOptions options)
+  : Node("apriltag", "apriltag", options.use_intra_process_comms(true)),
+    // topics
+    pub_tf(create_publisher<tf2_msgs::msg::TFMessage>("/tf", rclcpp::QoS(100))),
+    pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
+    sub_cam(image_transport::create_camera_subscription(this, "image", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter<std::string>("image_transport", "raw"), rmw_qos_profile_sensor_data)),
+    // parameter
+    tag_family(declare_parameter<std::string>("family", "36h11")),
+    tag_edge_size(declare_parameter<double>("size", 2.0)),
+    max_hamming(declare_parameter<int>("max_hamming", 0)),
+    z_up(declare_parameter<bool>("z_up", false)),
+    td(apriltag_detector_create())
+{
+    td->quad_decimate = declare_parameter<float>("decimate", 1.0);
+    td->quad_sigma =    declare_parameter<float>("blur", 0.0);
+    td->nthreads =      declare_parameter<int>("threads", 1);
+    td->debug =         declare_parameter<int>("debug", false);
+    td->refine_edges =  declare_parameter<int>("refine-edges", true);
 
     // get tag names and IDs
     static const std::string tag_list_prefix = "tag_lists";
@@ -75,19 +69,13 @@ AprilTagNode::AprilTagNode(rclcpp::NodeOptions options) : Node("apriltag", "apri
         tracked_tags[id] = name.substr(tag_list_prefix.size()+1, name.size());
     }
 
-    get_parameter<bool>("z_up", z_up);
-
-    if(!tag_create.count(tag_family)) {
-        throw std::runtime_error("unsupported tag family: "+tag_family);
+    if(tag_create.count(tag_family)) {
+        tf = tag_create.at(tag_family)();
+        apriltag_detector_add_family(td, tf);
     }
-    tf = tag_create.at(tag_family)();
-    td = apriltag_detector_create();
-    get_parameter<float>("decimate", td->quad_decimate);
-    get_parameter<float>("blur", td->quad_sigma);
-    get_parameter<int>("threads", td->nthreads);
-    get_parameter<int>("debug", td->debug);
-    get_parameter<int>("refine-edges", td->refine_edges);
-    apriltag_detector_add_family(td, tf);
+    else {
+        throw std::runtime_error("Unsupported tag family: "+tag_family);
+    }
 }
 
 AprilTagNode::~AprilTagNode() {

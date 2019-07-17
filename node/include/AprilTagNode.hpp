@@ -20,29 +20,29 @@ class AprilTagNode : public rclcpp::Node {
 public:
     AprilTagNode(const rclcpp::NodeOptions options = rclcpp::NodeOptions());
 
-    ~AprilTagNode();
+    ~AprilTagNode() override;
 
 private:
     typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
 
     apriltag_family_t* tf;
-    apriltag_detector_t* td;
-    std::string tag_family;
-    double tag_edge_size;
-    int max_hamming;
     std::map<int, std::string> tracked_tags;
+    apriltag_detector_t* const td;
+    const std::string tag_family;
+    const double tag_edge_size;
+    const int max_hamming;
 
     Mat3 K;
 
-    bool z_up;
+    const bool z_up;
 
     // function pointer for tag family creation / destruction
-    static std::map<std::string, apriltag_family_t *(*)(void)> tag_create;
-    static std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy;
+    static const std::map<std::string, apriltag_family_t *(*)(void)> tag_create;
+    const static std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy;
 
-    image_transport::CameraSubscriber sub_cam;
-    rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr pub_tf;
-    rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
+    const image_transport::CameraSubscriber sub_cam;
+    const rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr pub_tf;
+    const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
 
     void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
 
