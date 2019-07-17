@@ -18,7 +18,7 @@ The node subscribes via a `image_transport::CameraSubscriber` to `/apriltag/imag
 
 The camera intrinsics `K` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The image and the camera intrinsics need to have the same timestamp.
 
-The tag poses are published on the standard TF topic `/tf` with the header set to the image header and `child_frame_id` set to either `<tag_family>:<id>` (e.g. "36h11:0") or the frame name selected via configuration file. Additional information about detected tags is published as `AprilTagDetectionArray` message, which contains the original homography  matrix, the `hamming` distance and the `decision_margin` of the detection.
+The tag poses are published on the standard TF topic `/tf` with the header set to the image header and `child_frame_id` set to either `tag<family>:<id>` (e.g. "tag36h11:0") or the frame name selected via configuration file. Additional information about detected tags is published as `AprilTagDetectionArray` message, which contains the original homography  matrix, the `hamming` distance and the `decision_margin` of the detection.
 
 ## Configuration
 
@@ -44,15 +44,14 @@ apriltag:                           # namespace
             debug: 0                # write additional debugging images to current working directory
 
             # (optional) list of tags
-            tag_lists:
-                <frame name>: <id>  # tag frame name and ID
-                <frame name>: <id>
-                [...]
+            tag_ids: [<id1>, <id2>, ...]            # tag IDs for which to publish transform
+            tag_frames: [<frame1>, <frame2>, ...]   # optional frame names
+            tag_sizes: [<size1>, <size1>, ...]      # optional tag-specific edge size
 ```
 
 The parameters `family` and `size` are required. `family` (string) defines the tag family for the detector and must be one of `16h5`, `25h9`, `36h11`, `Circle21h7`, `Circle49h12`, `Custom48h12`, `Standard41h12`, `Standard52h13`. `size` (float) is the tag edge size in meters, assuming square markers.
 
-`tag_lists` is an optional list to map detected tag IDs to frame names. If it is provided, only the the listed tag IDs will be published, with `child_frame_id` set to the frame name. If not provided, the pose of all detected tags is published with a generic `child_frame_id`.
+Instead of publishing all tag poses, the list `tag_ids` can be used to only publish selected tag IDs. Each tag can have an associated child frame name in `tag_frames` and a tag specific size in `tag_sizes`. These lists must either have the same length as `tag_ids` or may be empty. In this case, a default frame name of the form `tag<family>:<id>` and the default tag edge size `size` will be used.
 
 The remaining parameters are set to the their default values from the library. See `apriltag.h` for a more detailed description of their function.
 
