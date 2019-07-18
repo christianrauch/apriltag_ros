@@ -50,7 +50,7 @@ apriltag:                           # namespace
                 [...]
 ```
 
-The parameters `family` and `size` are required. `family` (string) defines the tag family for the detector and must be one of `16h5`, `25h7`, `25h9`, `36h10`, `36h11`, `36artoolkit`. `size` (float) is the tag edge size in meters, assuming square markers.
+The parameters `family` and `size` are required. `family` (string) defines the tag family for the detector and must be one of `16h5`, `25h9`, `36h11`, `Circle21h7`, `Circle49h12`, `Custom48h12`, `Standard41h12`, `Standard52h13`. `size` (float) is the tag edge size in meters, assuming square markers.
 
 `tag_lists` is an optional list to map detected tag IDs to frame names. If it is provided, only the the listed tag IDs will be published, with `child_frame_id` set to the frame name. If not provided, the pose of all detected tags is published with a generic `child_frame_id`.
 
