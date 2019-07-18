@@ -1,4 +1,0 @@
-[submodule "apriltag_msgs"]
-	path = apriltag_msgs
-	url = https://github.com/christianrauch/apriltag_msgs.git
-	branch = master
