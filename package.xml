@@ -3,7 +3,7 @@
   <name>apriltag_ros</name>
   <version>2.1.0</version>
   <description>AprilTag detection node</description>
-  <maintainer email="Rauch.Christian@gmx.de"></maintainer>
+  <maintainer email="Rauch.Christian@gmx.de">Christian Rauch</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
