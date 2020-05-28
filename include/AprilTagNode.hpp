@@ -8,7 +8,7 @@
 #include <apriltag_msgs/msg/april_tag_detection_array.hpp>
 #include <tf2_msgs/msg/tf_message.hpp>
 
-#include <image_transport/camera_subscriber.h>
+#include <image_transport/camera_subscriber.hpp>
 
 // apriltag
 #include <apriltag.h>
