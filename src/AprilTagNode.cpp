@@ -44,16 +44,16 @@ const std::map<std::string, void (*)(apriltag_family_t*)> AprilTagNode::tag_dest
 
 AprilTagNode::AprilTagNode(rclcpp::NodeOptions options)
   : Node("apriltag", "apriltag", options.use_intra_process_comms(true)),
-    // topics
-    pub_tf(create_publisher<tf2_msgs::msg::TFMessage>("/tf", rclcpp::QoS(100))),
-    pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
-    sub_cam(image_transport::create_camera_subscription(this, "image", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter<std::string>("image_transport", "raw"), rmw_qos_profile_sensor_data)),
     // parameter
+    td(apriltag_detector_create()),
     tag_family(declare_parameter<std::string>("family", "36h11")),
     tag_edge_size(declare_parameter<double>("size", 2.0)),
     max_hamming(declare_parameter<int>("max_hamming", 0)),
     z_up(declare_parameter<bool>("z_up", false)),
-    td(apriltag_detector_create())
+    // topics
+    sub_cam(image_transport::create_camera_subscription(this, "image", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter<std::string>("image_transport", "raw"), rmw_qos_profile_sensor_data)),
+    pub_tf(create_publisher<tf2_msgs::msg::TFMessage>("/tf", rclcpp::QoS(100))),
+    pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1)))
 {
     td->quad_decimate = declare_parameter<float>("decimate", 1.0);
     td->quad_sigma =    declare_parameter<float>("blur", 0.0);
