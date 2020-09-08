@@ -6,7 +6,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <apriltag_msgs/msg/april_tag_detection.hpp>
 #include <apriltag_msgs/msg/april_tag_detection_array.hpp>
-#include <tf2_msgs/msg/tf_message.hpp>
+#include <tf2_ros/transform_broadcaster.h>
 
 #include <image_transport/camera_subscriber.hpp>
 
@@ -42,8 +42,8 @@ private:
     const static std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy;
 
     const image_transport::CameraSubscriber sub_cam;
-    const rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr pub_tf;
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
+    tf2_ros::TransformBroadcaster tf_broadcaster;
 
     void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
 

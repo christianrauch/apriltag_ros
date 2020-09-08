@@ -13,7 +13,7 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
   <depend>sensor_msgs</depend>
-  <depend>tf2_msgs</depend>
+  <depend>tf2_ros</depend>
   <depend>apriltag_msgs</depend>
   <depend>apriltag</depend>
   <depend>image_transport</depend>

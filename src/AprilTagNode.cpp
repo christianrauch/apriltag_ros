@@ -52,8 +52,8 @@ AprilTagNode::AprilTagNode(rclcpp::NodeOptions options)
     z_up(declare_parameter<bool>("z_up", false)),
     // topics
     sub_cam(image_transport::create_camera_subscription(this, "image", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter<std::string>("image_transport", "raw"), rmw_qos_profile_sensor_data)),
-    pub_tf(create_publisher<tf2_msgs::msg::TFMessage>("/tf", rclcpp::QoS(100))),
-    pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1)))
+    pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
+    tf_broadcaster(this)
 {
     td->quad_decimate = declare_parameter<float>("decimate", 1.0);
     td->quad_sigma =    declare_parameter<float>("blur", 0.0);
@@ -115,7 +115,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     apriltag_msgs::msg::AprilTagDetectionArray msg_detections;
     msg_detections.header = msg_img->header;
 
-    tf2_msgs::msg::TFMessage tfs;
+    std::vector<geometry_msgs::msg::TransformStamped> tfs;
 
     for (int i = 0; i < zarray_size(detections); i++) {
         apriltag_detection_t* det;
@@ -146,11 +146,11 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id);
         getPose(*(det->H), tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size);
 
-        tfs.transforms.push_back(tf);
+        tfs.push_back(tf);
     }
 
     pub_detections->publish(msg_detections);
-    pub_tf->publish(tfs);
+    tf_broadcaster.sendTransform(tfs);
 
     apriltag_detections_destroy(detections);
 }
