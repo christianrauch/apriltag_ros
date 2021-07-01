@@ -55,7 +55,7 @@ Instead of publishing all tag poses, the list `tag_ids` can be used to only publ
 
 The remaining parameters are set to the their default values from the library. See `apriltag.h` for a more detailed description of their function.
 
-See [tags_16h5_all.yaml](node/cfg/tags_16h5_all.yaml) for an example configuration that publishes all markers in the 16h5 family and [tags_16h5_filtered.yaml](node/cfg/tags_16h5_filtered.yaml) for filtering tags.
+See [tags_16h5_all.yaml](cfg/tags_16h5_all.yaml) for an example configuration that publishes all markers in the 16h5 family and [tags_16h5_filtered.yaml](cfg/tags_16h5_filtered.yaml) for filtering tags.
 
 The composable node can be loaded into an already running component manager with a configuration file, by passing the configuration file path to `__params`:
 ```bash
