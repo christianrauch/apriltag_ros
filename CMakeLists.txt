@@ -23,7 +23,7 @@ include_directories(include)
 
 add_library(AprilTagNode SHARED src/AprilTagNode.cpp)
 ament_target_dependencies(AprilTagNode rclcpp rclcpp_components sensor_msgs apriltag_msgs tf2_msgs image_transport cv_bridge)
-target_link_libraries(AprilTagNode apriltag::apriltag)
+target_link_libraries(AprilTagNode apriltag)
 rclcpp_components_register_nodes(AprilTagNode "AprilTagNode")
 
 ament_environment_hooks(${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH})
