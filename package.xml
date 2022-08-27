@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>apriltag_ros</name>
-  <version>2.1.0</version>
+  <version>3.0.0</version>
   <description>AprilTag detection node</description>
   <maintainer email="Rauch.Christian@gmx.de">Christian Rauch</maintainer>
   <license>MIT</license>
