@@ -1,7 +1,17 @@
-#include <AprilTagNode.hpp>
+// ros
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <apriltag_msgs/msg/april_tag_detection.hpp>
+#include <apriltag_msgs/msg/april_tag_detection_array.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+#include <image_transport/camera_subscriber.hpp>
 #include <image_transport/image_transport.hpp>
 #include <cv_bridge/cv_bridge.h>
+#include <rclcpp_components/register_node_macro.hpp>
 
+// apriltag
+#include <apriltag.h>
 // default tag families
 #include <tag16h5.h>
 #include <tag25h9.h>
@@ -18,7 +28,8 @@
 #define TAG_CREATE(name) { #name, tag##name##_create },
 #define TAG_DESTROY(name) { #name, tag##name##_destroy },
 
-const std::map<std::string, apriltag_family_t *(*)(void)> AprilTagNode::tag_create =
+// function pointer for tag family creation / destruction
+static const std::map<std::string, apriltag_family_t *(*)(void)> tag_create =
 {
     TAG_CREATE(36h11)
     TAG_CREATE(25h9)
@@ -30,7 +41,7 @@ const std::map<std::string, apriltag_family_t *(*)(void)> AprilTagNode::tag_crea
     TAG_CREATE(Standard52h13)
 };
 
-const std::map<std::string, void (*)(apriltag_family_t*)> AprilTagNode::tag_destroy =
+static const std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy =
 {
     TAG_DESTROY(36h11)
     TAG_DESTROY(25h9)
@@ -41,6 +52,40 @@ const std::map<std::string, void (*)(apriltag_family_t*)> AprilTagNode::tag_dest
     TAG_DESTROY(Standard41h12)
     TAG_DESTROY(Standard52h13)
 };
+
+
+class AprilTagNode : public rclcpp::Node {
+public:
+    AprilTagNode(const rclcpp::NodeOptions options = rclcpp::NodeOptions());
+
+    ~AprilTagNode() override;
+
+private:
+    typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
+
+    apriltag_family_t* tf;
+    apriltag_detector_t* const td;
+    const std::string tag_family;
+    const double tag_edge_size;
+    const int max_hamming;
+    std::unordered_map<int, std::string> tag_frames;
+    std::unordered_map<int, double> tag_sizes;
+
+    Mat3 K;
+
+    const bool z_up;
+
+    const image_transport::CameraSubscriber sub_cam;
+    const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
+    tf2_ros::TransformBroadcaster tf_broadcaster;
+
+    void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
+
+    void getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const double size) const;
+};
+
+RCLCPP_COMPONENTS_REGISTER_NODE(AprilTagNode)
+
 
 AprilTagNode::AprilTagNode(rclcpp::NodeOptions options)
   : Node("apriltag", "apriltag", options.use_intra_process_comms(true)),
@@ -188,6 +233,3 @@ void AprilTagNode::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, co
     t.rotation.y = q.y();
     t.rotation.z = q.z();
 }
-
-#include <rclcpp_components/register_node_macro.hpp>
-RCLCPP_COMPONENTS_REGISTER_NODE(AprilTagNode)

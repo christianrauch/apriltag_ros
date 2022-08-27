@@ -19,8 +19,6 @@ find_package(Threads REQUIRED)
 
 find_package(apriltag REQUIRED)
 
-include_directories(include)
-
 add_library(AprilTagNode SHARED src/AprilTagNode.cpp)
 ament_target_dependencies(AprilTagNode rclcpp rclcpp_components sensor_msgs apriltag_msgs tf2_ros image_transport cv_bridge)
 target_link_libraries(AprilTagNode apriltag::apriltag)
