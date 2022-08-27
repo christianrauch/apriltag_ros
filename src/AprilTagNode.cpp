@@ -69,6 +69,7 @@ private:
     const std::string tag_family;
     const double tag_edge_size;
     const int max_hamming;
+    const bool profile;
     std::unordered_map<int, std::string> tag_frames;
     std::unordered_map<int, double> tag_sizes;
 
@@ -91,6 +92,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     tag_family(declare_parameter<std::string>("family", "36h11")),
     tag_edge_size(declare_parameter<double>("size", 2.0)),
     max_hamming(declare_parameter<int>("max_hamming", 0)),
+    profile(declare_parameter("profile", false)),
     z_up(declare_parameter<bool>("z_up", false)),
     // topics
     sub_cam(image_transport::create_camera_subscription(this, "image_rect", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter<std::string>("image_transport", "raw"), rmw_qos_profile_sensor_data)),
@@ -155,6 +157,9 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
 
     // detect tags
     zarray_t* detections = apriltag_detector_detect(td, &im);
+
+    if (profile)
+        timeprofile_display(td->tp);
 
     apriltag_msgs::msg::AprilTagDetectionArray msg_detections;
     msg_detections.header = msg_img->header;
