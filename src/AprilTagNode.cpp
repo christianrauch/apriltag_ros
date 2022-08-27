@@ -59,7 +59,7 @@ void getPose(const matd_t& H,
 
 class AprilTagNode : public rclcpp::Node {
 public:
-    AprilTagNode(const rclcpp::NodeOptions options = rclcpp::NodeOptions());
+    AprilTagNode(const rclcpp::NodeOptions& options);
 
     ~AprilTagNode() override;
 
@@ -84,8 +84,8 @@ private:
 RCLCPP_COMPONENTS_REGISTER_NODE(AprilTagNode)
 
 
-AprilTagNode::AprilTagNode(rclcpp::NodeOptions options)
-  : Node("apriltag", "apriltag", options.use_intra_process_comms(true)),
+AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
+  : Node("apriltag", options),
     // parameter
     td(apriltag_detector_create()),
     tag_family(declare_parameter<std::string>("family", "36h11")),

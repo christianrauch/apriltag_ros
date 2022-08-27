@@ -25,28 +25,27 @@ The tag poses are published on the standard TF topic `/tf` with the header set t
 The node is configured via a yaml configurations file. For the complete ROS yaml parameter file syntax, see: https://github.com/ros2/rcl/tree/master/rcl_yaml_param_parser.
 
 The file has the format:
-```YAML
-apriltag:                           # namespace
-    apriltag:                       # node name
-        ros__parameters:
-            # required
-            image_transport: raw    # image format: "raw" or "compressed" (default: raw)
-            family: <tag family>    # tag family name: 16h5, 25h9, 36h11 (default: 36h11)
-            size: <tag edge size>   # tag edge size in meter (default: 2.0)
-            z_up: true              # rotate about x-axis to have Z pointing upwards (default: false)
+```yaml
+apriltag:                   # node name
+  ros__parameters:
+    # required
+    image_transport: raw    # image format: "raw" or "compressed" (default: raw)
+    family: <tag family>    # tag family name: 16h5, 25h9, 36h11 (default: 36h11)
+    size: <tag edge size>   # tag edge size in meter (default: 2.0)
+    z_up: true              # rotate about x-axis to have Z pointing upwards (default: false)
 
-            # (optional) tuning of detection
-            max_hamming: 0          # maximum allowed hamming distance (corrected bits)
-            decimate: 1.0           # decimate resolution for quad detection
-            blur: 0.0               # sigma of Gaussian blur for quad detection
-            refine-edges: 1         # snap to strong gradients
-            threads: 1              # number of threads
-            debug: 0                # write additional debugging images to current working directory
+    # (optional) tuning of detection
+    max_hamming: 0          # maximum allowed hamming distance (corrected bits)
+    decimate: 1.0           # decimate resolution for quad detection
+    blur: 0.0               # sigma of Gaussian blur for quad detection
+    refine-edges: 1         # snap to strong gradients
+    threads: 1              # number of threads
+    debug: 0                # write additional debugging images to current working directory
 
-            # (optional) list of tags
-            tag_ids: [<id1>, <id2>, ...]            # tag IDs for which to publish transform
-            tag_frames: [<frame1>, <frame2>, ...]   # optional frame names
-            tag_sizes: [<size1>, <size1>, ...]      # optional tag-specific edge size
+    # (optional) list of tags
+    tag_ids: [<id1>, <id2>, ...]            # tag IDs for which to publish transform
+    tag_frames: [<frame1>, <frame2>, ...]   # optional frame names
+    tag_sizes: [<size1>, <size1>, ...]      # optional tag-specific edge size
 ```
 
 The parameters `family` and `size` are required. `family` (string) defines the tag family for the detector and must be one of `16h5`, `25h9`, `36h11`, `Circle21h7`, `Circle49h12`, `Custom48h12`, `Standard41h12`, `Standard52h13`. `size` (float) is the tag edge size in meters, assuming square markers.
