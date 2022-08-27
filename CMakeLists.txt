@@ -31,7 +31,7 @@ set_property(TARGET utils PROPERTY POSITION_INDEPENDENT_CODE ON)
 add_library(AprilTagNode SHARED src/AprilTagNode.cpp)
 ament_target_dependencies(AprilTagNode rclcpp rclcpp_components sensor_msgs apriltag_msgs tf2_ros image_transport cv_bridge)
 target_link_libraries(AprilTagNode apriltag::apriltag utils)
-rclcpp_components_register_nodes(AprilTagNode "AprilTagNode")
+rclcpp_components_register_node(AprilTagNode PLUGIN "AprilTagNode" EXECUTABLE "apriltag_node")
 
 ament_environment_hooks(${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH})
 
