@@ -97,11 +97,11 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
     tf_broadcaster(this)
 {
-    td->quad_decimate = declare_parameter<float>("decimate", 1.0);
-    td->quad_sigma =    declare_parameter<float>("blur", 0.0);
-    td->nthreads =      declare_parameter<int>("threads", 1);
-    td->debug =         declare_parameter<int>("debug", false);
-    td->refine_edges =  declare_parameter<int>("refine-edges", true);
+    td->quad_decimate = declare_parameter<float>("decimate", td->quad_decimate);
+    td->quad_sigma =    declare_parameter<float>("blur", td->quad_sigma);
+    td->nthreads =      declare_parameter<int>("threads", td->nthreads);
+    td->debug =         declare_parameter<bool>("debug", td->debug);
+    td->refine_edges =  declare_parameter<bool>("refine-edges", td->refine_edges);
 
     // get tag names, IDs and sizes
     const auto ids = declare_parameter<std::vector<int64_t>>("tag_ids", std::vector<int64_t>{});
