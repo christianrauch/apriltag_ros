@@ -70,19 +70,14 @@ ros2 run apriltag_ros apriltag_node --ros-args \
 
 ### Composable Node
 
-The composable node can be loaded into an already running component manager with a configuration file, by passing the configuration file path to `__params`:
-```bash
-ros2 component load /ComponentManager apriltag_ros AprilTagNode \
-    -r /apriltag/image_rect:=/camera/image \
-    -r /apriltag/camera_info:=/camera/camera_info \
-    -r __params:=`ros2 pkg prefix apriltag_ros`/share/apriltag_ros/cfg/tags_16h5_all.yaml
-```
-A component manager can be started via:
-```bash
-ros2 run rclcpp_components component_container
+For more efficient intraprocess communication, a composable node is provided:
+```sh
+$ ros2 component types
+apriltag_ros
+  AprilTagNode
 ```
 
-Alternatively, a launch file can be used to start a component manager and load the composable node with configuration:
-```bash
+This `AprilTagNode` component can be loaded with other nodes into a "container node" process where they used shared-memory communication to prevent unnecessary data copies. The example launch file [tag_36h11_all.launch.py](launch//tag_36h11_all.launch.py) loads the `AprilTagNode` together with the `usb_cam::UsbCamNode` component from the [`usb_cam` package](https://github.com/ros-drivers/usb_cam) (`sudo apt install ros-$ROS_DISTRO-usb-cam`) into one container and enables `use_intra_process_comms` for both:
+```sh
 ros2 launch apriltag_ros tag_36h11_all.launch.py
 ```
