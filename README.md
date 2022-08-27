@@ -7,16 +7,16 @@ For more information on AprilTag, the paper and the reference implementation: ht
 ## Topics
 
 ### Subscriptions:
-The node subscribes via a `image_transport::CameraSubscriber` to `/apriltag/image`. The set of topic names depends on the type of image transport (parameter `image_transport`) selected (`raw` or `compressed`):
-- `/apriltag/image` (`raw`, type: `sensor_msgs/Image`)
-- `/apriltag/image/compressed` (`compressed`, type: `sensor_msgs/CompressedImage`)
+The node subscribes via a `image_transport::CameraSubscriber` to rectified images on `/apriltag/image_rect`. The set of topic names depends on the type of image transport (parameter `image_transport`) selected (`raw` or `compressed`):
+- `/apriltag/image_rect` (`raw`, type: `sensor_msgs/Image`)
+- `/apriltag/image_rect/compressed` (`compressed`, type: `sensor_msgs/CompressedImage`)
 - `/apriltag/camera_info` (type: `sensor_msgs/CameraInfo`)
 
 ### Publisher:
 - `/tf` (type: `tf2_msgs/TFMessage`)
 - `/apriltag/detections` (type: `apriltag_msgs/AprilTagDetectionArray`)
 
-The camera intrinsics `K` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The image and the camera intrinsics need to have the same timestamp.
+The camera intrinsics `P` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The image and the camera intrinsics need to have the same timestamp.
 
 The tag poses are published on the standard TF topic `/tf` with the header set to the image header and `child_frame_id` set to either `tag<family>:<id>` (e.g. "tag36h11:0") or the frame name selected via configuration file. Additional information about detected tags is published as `AprilTagDetectionArray` message, which contains the original homography  matrix, the `hamming` distance and the `decision_margin` of the detection.
 
@@ -60,7 +60,7 @@ See [tags_16h5_all.yaml](cfg/tags_16h5_all.yaml) for an example configuration th
 The composable node can be loaded into an already running component manager with a configuration file, by passing the configuration file path to `__params`:
 ```bash
 ros2 component load /ComponentManager apriltag_ros AprilTagNode \
-    -r /apriltag/image:=/camera/image \
+    -r /apriltag/image_rect:=/camera/image \
     -r /apriltag/camera_info:=/camera/camera_info \
     -r __params:=`ros2 pkg prefix apriltag_ros`/share/apriltag_ros/cfg/tags_16h5_all.yaml
 ```

@@ -17,24 +17,19 @@
 #include <Eigen/Dense>
 
 
+typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
+
+
 void getPose(const matd_t& H,
-             const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci,
+             const Mat3& Pinv,
              geometry_msgs::msg::Transform& t,
              const double size,
              const bool z_up)
 {
-    typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
-
-    const Eigen::Map<const Mat3>Hm(H.data);
-    Mat3 K;
-
-    // copy camera intrinsics
-    std::memcpy(K.data(), msg_ci->k.data(), 9*sizeof(double));
-
     // compute extrinsic camera parameter
     // https://dsp.stackexchange.com/a/2737/31703
     // H = K * T  =>  T = K^(-1) * H
-    const Mat3 T = K.inverse() * Hm / Hm(2,2);
+    const Mat3 T = Pinv * Eigen::Map<const Mat3>(H.data);
     Mat3 R;
     R.col(0) = T.col(0).normalized();
     R.col(1) = T.col(1).normalized();
@@ -98,7 +93,7 @@ AprilTagNode::AprilTagNode(rclcpp::NodeOptions options)
     max_hamming(declare_parameter<int>("max_hamming", 0)),
     z_up(declare_parameter<bool>("z_up", false)),
     // topics
-    sub_cam(image_transport::create_camera_subscription(this, "image", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter<std::string>("image_transport", "raw"), rmw_qos_profile_sensor_data)),
+    sub_cam(image_transport::create_camera_subscription(this, "image_rect", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter<std::string>("image_transport", "raw"), rmw_qos_profile_sensor_data)),
     pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
     tf_broadcaster(this)
 {
@@ -145,6 +140,9 @@ AprilTagNode::~AprilTagNode() {
 void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
                             const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci)
 {
+    // precompute inverse projection matrix
+    const Mat3 Pinv = Eigen::Map<const Eigen::Matrix<double, 3, 4, Eigen::RowMajor>>(msg_ci->p.data()).leftCols<3>().inverse();
+
     // convert to 8bit monochrome image
     const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
 
@@ -190,7 +188,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         tf.header = msg_img->header;
         // set child frame name by generic tag name or configured tag name
         tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id);
-        getPose(*(det->H), msg_ci, tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size, z_up);
+        getPose(*(det->H), Pinv, tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size, z_up);
 
         tfs.push_back(tf);
     }
