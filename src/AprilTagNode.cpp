@@ -53,6 +53,50 @@ static const std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy =
     TAG_DESTROY(Standard52h13)
 };
 
+void getPose(const matd_t& H,
+             const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci,
+             geometry_msgs::msg::Transform& t,
+             const double size,
+             const bool z_up)
+{
+    typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
+
+    const Eigen::Map<const Mat3>Hm(H.data);
+    Mat3 K;
+
+    // copy camera intrinsics
+    std::memcpy(K.data(), msg_ci->k.data(), 9*sizeof(double));
+
+    // compute extrinsic camera parameter
+    // https://dsp.stackexchange.com/a/2737/31703
+    // H = K * T  =>  T = K^(-1) * H
+    const Mat3 T = K.inverse() * Hm / Hm(2,2);
+    Mat3 R;
+    R.col(0) = T.col(0).normalized();
+    R.col(1) = T.col(1).normalized();
+    R.col(2) = R.col(0).cross(R.col(1));
+
+    if(z_up) {
+        // rotate by half rotation about x-axis
+        R.col(1) *= -1;
+        R.col(2) *= -1;
+    }
+
+    // the corner coordinates of the tag in the canonical frame are (+/-1, +/-1)
+    // hence the scale is half of the edge size
+    const Eigen::Vector3d tt = T.rightCols<1>() / ((T.col(0).norm() + T.col(0).norm())/2.0) * (size/2.0);
+
+    const Eigen::Quaterniond q(R);
+
+    t.translation.x = tt.x();
+    t.translation.y = tt.y();
+    t.translation.z = tt.z();
+    t.rotation.w = q.w();
+    t.rotation.x = q.x();
+    t.rotation.y = q.y();
+    t.rotation.z = q.z();
+}
+
 
 class AprilTagNode : public rclcpp::Node {
 public:
@@ -61,8 +105,6 @@ public:
     ~AprilTagNode() override;
 
 private:
-    typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
-
     apriltag_family_t* tf;
     apriltag_detector_t* const td;
     const std::string tag_family;
@@ -71,8 +113,6 @@ private:
     std::unordered_map<int, std::string> tag_frames;
     std::unordered_map<int, double> tag_sizes;
 
-    Mat3 K;
-
     const bool z_up;
 
     const image_transport::CameraSubscriber sub_cam;
@@ -80,8 +120,6 @@ private:
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
     void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
-
-    void getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const double size) const;
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(AprilTagNode)
@@ -140,10 +178,9 @@ AprilTagNode::~AprilTagNode() {
     tag_destroy.at(tag_family)(tf);
 }
 
-void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci) {
-    // copy camera intrinsics
-    std::memcpy(K.data(), msg_ci->k.data(), 9*sizeof(double));
-
+void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
+                            const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci)
+{
     // convert to 8bit monochrome image
     const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
 
@@ -189,7 +226,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         tf.header = msg_img->header;
         // set child frame name by generic tag name or configured tag name
         tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id);
-        getPose(*(det->H), tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size);
+        getPose(*(det->H), msg_ci, tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size, z_up);
 
         tfs.push_back(tf);
     }
@@ -198,38 +235,4 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     tf_broadcaster.sendTransform(tfs);
 
     apriltag_detections_destroy(detections);
-}
-
-void AprilTagNode::getPose(const matd_t& H, geometry_msgs::msg::Transform& t, const double size) const {
-
-    const Eigen::Map<const Mat3>Hm(H.data);
-
-    // compute extrinsic camera parameter
-    // https://dsp.stackexchange.com/a/2737/31703
-    // H = K * T  =>  T = K^(-1) * H
-    const Mat3 T = K.inverse() * Hm / Hm(2,2);
-    Mat3 R;
-    R.col(0) = T.col(0).normalized();
-    R.col(1) = T.col(1).normalized();
-    R.col(2) = R.col(0).cross(R.col(1));
-
-    if(z_up) {
-        // rotate by half rotation about x-axis
-        R.col(1) *= -1;
-        R.col(2) *= -1;
-    }
-
-    // the corner coordinates of the tag in the canonical frame are (+/-1, +/-1)
-    // hence the scale is half of the edge size
-    const Eigen::Vector3d tt = T.rightCols<1>() / ((T.col(0).norm() + T.col(0).norm())/2.0) * (size/2.0);
-
-    const Eigen::Quaterniond q(R);
-
-    t.translation.x = tt.x();
-    t.translation.y = tt.y();
-    t.translation.z = tt.z();
-    t.rotation.w = q.w();
-    t.rotation.x = q.x();
-    t.rotation.y = q.y();
-    t.rotation.z = q.z();
 }
