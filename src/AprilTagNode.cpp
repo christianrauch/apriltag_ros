@@ -17,8 +17,43 @@
 #include <Eigen/Dense>
 
 
+#define IF(N, V) if (assign_check(parameter, N, V)) continue;
+
+template<typename T>
+void assign(const rclcpp::Parameter& parameter, T& var)
+{
+    var = parameter.get_value<T>();
+}
+
+template<typename T>
+void assign(const rclcpp::Parameter& parameter, std::atomic<T>& var)
+{
+    var = parameter.get_value<T>();
+}
+
+template<typename T>
+bool assign_check(const rclcpp::Parameter& parameter, const std::string& name, T& var)
+{
+    if (parameter.get_name() == name) {
+        assign(parameter, var);
+        return true;
+    }
+    return false;
+}
+
+
 typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
 
+rcl_interfaces::msg::ParameterDescriptor
+descr(const std::string& description, const bool& read_only = false)
+{
+    rcl_interfaces::msg::ParameterDescriptor descr;
+
+    descr.description = description;
+    descr.read_only = read_only;
+
+    return descr;
+}
 
 void getPose(const matd_t& H,
              const Mat3& Pinv,
@@ -64,22 +99,29 @@ public:
     ~AprilTagNode() override;
 
 private:
+    const OnSetParametersCallbackHandle::SharedPtr cb_parameter;
+
     apriltag_family_t* tf;
     apriltag_detector_t* const td;
-    const std::string tag_family;
-    const double tag_edge_size;
-    const int max_hamming;
-    const bool profile;
+
+    // parameter
+    std::mutex mutex;
+    double tag_edge_size;
+    std::atomic<int> max_hamming;
+    std::atomic<bool> profile;
     std::unordered_map<int, std::string> tag_frames;
     std::unordered_map<int, double> tag_sizes;
+    std::atomic<bool> z_up;
 
-    const bool z_up;
+    std::function<void(apriltag_family_t*)> tf_destructor;
 
     const image_transport::CameraSubscriber sub_cam;
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
     void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
+
+    rcl_interfaces::msg::SetParametersResult onParameter(const std::vector<rclcpp::Parameter>& parameters);
 };
 
 RCLCPP_COMPONENTS_REGISTER_NODE(AprilTagNode)
@@ -88,26 +130,33 @@ RCLCPP_COMPONENTS_REGISTER_NODE(AprilTagNode)
 AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
   : Node("apriltag", options),
     // parameter
+    cb_parameter(add_on_set_parameters_callback(std::bind(&AprilTagNode::onParameter, this, std::placeholders::_1))),
     td(apriltag_detector_create()),
-    tag_family(declare_parameter<std::string>("family", "36h11")),
-    tag_edge_size(declare_parameter<double>("size", 2.0)),
-    max_hamming(declare_parameter<int>("max_hamming", 0)),
-    profile(declare_parameter("profile", false)),
-    z_up(declare_parameter<bool>("z_up", false)),
     // topics
-    sub_cam(image_transport::create_camera_subscription(this, "image_rect", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter<std::string>("image_transport", "raw"), rmw_qos_profile_sensor_data)),
+    sub_cam(image_transport::create_camera_subscription(this, "image_rect", std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2), declare_parameter("image_transport", "raw", descr({}, true)), rmw_qos_profile_sensor_data)),
     pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
     tf_broadcaster(this)
 {
-    td->quad_decimate = declare_parameter<float>("decimate", td->quad_decimate);
-    td->quad_sigma =    declare_parameter<float>("blur", td->quad_sigma);
-    td->nthreads =      declare_parameter<int>("threads", td->nthreads);
-    td->debug =         declare_parameter<bool>("debug", td->debug);
-    td->refine_edges =  declare_parameter<bool>("refine-edges", td->refine_edges);
+    // read-only parameters
+    const std::string tag_family = declare_parameter("family", "36h11", descr("tag family", true));
+    tag_edge_size = declare_parameter("size", 1.0, descr("default tag size", true));
 
     // get tag names, IDs and sizes
-    const auto ids = declare_parameter<std::vector<int64_t>>("tag_ids", std::vector<int64_t>{});
-    const auto frames = declare_parameter<std::vector<std::string>>("tag_frames", std::vector<std::string>{});
+    const auto ids =    declare_parameter("tag.ids", std::vector<int64_t>{}, descr("tag ids", true));
+    const auto frames = declare_parameter("tag.frames", std::vector<std::string>{}, descr("tag frame names per id", true));
+    const auto sizes =  declare_parameter("tag.sizes", std::vector<double>{}, descr("tag sizes per id", true));
+
+    // detector parameters in "detector" namespace
+    declare_parameter("detector.threads", td->nthreads, descr("number of threads"));
+    declare_parameter("detector.decimate", td->quad_decimate, descr("decimate resolution for quad detection"));
+    declare_parameter("detector.blur", td->quad_sigma, descr("sigma of Gaussian blur for quad detection"));
+    declare_parameter<bool>("detector.refine", td->refine_edges, descr("snap to strong gradients"));
+    declare_parameter("detector.sharpening", td->decode_sharpening, descr("sharpening of decoded images"));
+    declare_parameter<bool>("detector.debug", td->debug, descr("write additional debugging images to working directory"));
+
+    declare_parameter<int>("max_hamming", 0, descr("reject detections with more corrected bits than allowed"));
+    declare_parameter("profile", false, descr("print profiling information to stdout"));
+    declare_parameter<bool>("z_up", true, descr("let the z axis of the tag frame point up"));
 
     if(!frames.empty()) {
         if(ids.size()!=frames.size()) {
@@ -116,7 +165,6 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         for(size_t i = 0; i<ids.size(); i++) { tag_frames[ids[i]] = frames[i]; }
     }
 
-    const auto sizes = declare_parameter<std::vector<double>>("tag_sizes", std::vector<double>{});
     if(!sizes.empty()) {
         // use tag specific size
         if(ids.size()!=sizes.size()) {
@@ -127,6 +175,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
     if(tag_create.count(tag_family)) {
         tf = tag_create.at(tag_family)();
+        tf_destructor = tag_destroy.at(tag_family);
         apriltag_detector_add_family(td, tf);
     }
     else {
@@ -136,7 +185,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
 AprilTagNode::~AprilTagNode() {
     apriltag_detector_destroy(td);
-    tag_destroy.at(tag_family)(tf);
+    tf_destructor(tf);
 }
 
 void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
@@ -156,7 +205,9 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     };
 
     // detect tags
+    mutex.lock();
     zarray_t* detections = apriltag_detector_detect(td, &im);
+    mutex.unlock();
 
     if (profile)
         timeprofile_display(td->tp);
@@ -202,4 +253,32 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     tf_broadcaster.sendTransform(tfs);
 
     apriltag_detections_destroy(detections);
+}
+
+rcl_interfaces::msg::SetParametersResult
+AprilTagNode::onParameter(const std::vector<rclcpp::Parameter>& parameters)
+{
+    rcl_interfaces::msg::SetParametersResult result;
+
+    mutex.lock();
+
+    for (const rclcpp::Parameter& parameter : parameters) {
+        RCLCPP_DEBUG_STREAM(get_logger(), "setting: " << parameter);
+
+        IF("detector.threads", td->nthreads)
+        IF("detector.decimate", td->quad_decimate)
+        IF("detector.blur", td->quad_sigma)
+        IF("detector.refine", td->refine_edges)
+        IF("detector.sharpening", td->decode_sharpening)
+        IF("detector.debug", td->debug)
+        IF("max_hamming", max_hamming)
+        IF("profile", profile)
+        IF("z_up", z_up)
+    }
+
+    mutex.unlock();
+
+    result.successful = true;
+
+    return result;
 }
