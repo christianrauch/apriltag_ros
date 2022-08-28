@@ -24,37 +24,42 @@ The tag poses are published on the standard TF topic `/tf` with the header set t
 
 The node is configured via a yaml configurations file. For the complete ROS yaml parameter file syntax, see: https://github.com/ros2/rcl/tree/master/rcl_yaml_param_parser.
 
-The file has the format:
+The configuration file has the format:
 ```yaml
-apriltag:                   # node name
+apriltag:                 # node name
   ros__parameters:
-    # required
-    image_transport: raw    # image format: "raw" or "compressed" (default: raw)
-    family: <tag family>    # tag family name: 16h5, 25h9, 36h11 (default: 36h11)
-    size: <tag edge size>   # tag edge size in meter (default: 2.0)
-    z_up: true              # rotate about x-axis to have Z pointing upwards (default: false)
+    # setup (defaults)
+    image_transport: raw  # image format: "raw" or "compressed"
+    family: 36h11         # tag family name: 16h5, 25h9, 36h11
+    size: 1.0             # default tag edge size in meter
+    z_up: true            # rotate about x-axis to have Z pointing upwards
+    profile: false        # print profiling information to stdout
 
-    # (optional) tuning of detection
-    max_hamming: 0          # maximum allowed hamming distance (corrected bits)
-    decimate: 1.0           # decimate resolution for quad detection
-    blur: 0.0               # sigma of Gaussian blur for quad detection
-    refine-edges: 1         # snap to strong gradients
-    threads: 1              # number of threads
-    debug: 0                # write additional debugging images to current working directory
+    # tuning of detection (defaults)
+    max_hamming: 0        # maximum allowed hamming distance (corrected bits)
+    detector:
+      threads: 1          # number of threads
+      decimate: 2.0       # decimate resolution for quad detection
+      blur: 0.0           # sigma of Gaussian blur for quad detection
+      refine: 1           # snap to strong gradients
+      sharpening: 0.25    # sharpening of decoded images
+      debug: 0            # write additional debugging images to current working directory
 
     # (optional) list of tags
-    tag_ids: [<id1>, <id2>, ...]            # tag IDs for which to publish transform
-    tag_frames: [<frame1>, <frame2>, ...]   # optional frame names
-    tag_sizes: [<size1>, <size1>, ...]      # optional tag-specific edge size
+    # If defined, 'frames' and 'sizes' must have the same length as 'ids'.
+    tag:
+      ids:    [<id1>, <id2>, ...]         # tag IDs for which to publish transform
+      frames: [<frame1>, <frame2>, ...]   # frame names
+      sizes:  [<size1>, <size1>, ...]     # tag-specific edge size, overrides the default 'size'
 ```
 
-The parameters `family` and `size` are required. `family` (string) defines the tag family for the detector and must be one of `16h5`, `25h9`, `36h11`, `Circle21h7`, `Circle49h12`, `Custom48h12`, `Standard41h12`, `Standard52h13`. `size` (float) is the tag edge size in meters, assuming square markers.
+The `family` (string) defines the tag family for the detector and must be one of `16h5`, `25h9`, `36h11`, `Circle21h7`, `Circle49h12`, `Custom48h12`, `Standard41h12`, `Standard52h13`. `size` (float) is the tag edge size in meters, assuming square markers.
 
-Instead of publishing all tag poses, the list `tag_ids` can be used to only publish selected tag IDs. Each tag can have an associated child frame name in `tag_frames` and a tag specific size in `tag_sizes`. These lists must either have the same length as `tag_ids` or may be empty. In this case, a default frame name of the form `tag<family>:<id>` and the default tag edge size `size` will be used.
+Instead of publishing all tag poses, the list `tag.ids` can be used to only publish selected tag IDs. Each tag can have an associated child frame name in `tag.frames` and a tag specific size in `tag.sizes`. These lists must either have the same length as `tag.ids` or may be empty. In this case, a default frame name of the form `tag<family>:<id>` and the default tag edge size `size` will be used.
 
 The remaining parameters are set to the their default values from the library. See `apriltag.h` for a more detailed description of their function.
 
-See [tags_16h5_all.yaml](cfg/tags_16h5_all.yaml) for an example configuration that publishes all markers in the 16h5 family and [tags_16h5_filtered.yaml](cfg/tags_16h5_filtered.yaml) for filtering tags.
+See [tags_36h11.yaml](cfg/tags_36h11.yaml) for an example configuration that publishes specific tag poses of the 16h5 family.
 
 ## Nodes
 
@@ -65,7 +70,7 @@ The `apriltag_node` executable can be launched with topic remappings and a confi
 ros2 run apriltag_ros apriltag_node --ros-args \
     -r /apriltag/image_rect:=/camera/image \
     -r /apriltag/camera_info:=/camera/camera_info \
-    --params-file `ros2 pkg prefix apriltag_ros`/share/apriltag_ros/cfg/tags_36h11_all.yaml
+    --params-file `ros2 pkg prefix apriltag_ros`/share/apriltag_ros/cfg/tags_36h11.yaml
 ```
 
 ### Composable Node
