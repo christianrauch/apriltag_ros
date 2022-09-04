@@ -5,7 +5,7 @@ project(apriltag_ros)
 set(CMAKE_CXX_STANDARD 14)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Werror -Wall -Wextra -Wpedantic)
   add_link_options("-Wl,-z,relro,-z,now,-z,defs")
 endif()
 

@@ -197,12 +197,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     // convert to 8bit monochrome image
     const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
 
-    image_u8_t im = {
-        .width = img_uint8.cols,
-        .height = img_uint8.rows,
-        .stride = img_uint8.cols,
-        .buf = img_uint8.data
-    };
+    image_u8_t im{img_uint8.cols, img_uint8.rows, img_uint8.cols, img_uint8.data};
 
     // detect tags
     mutex.lock();
