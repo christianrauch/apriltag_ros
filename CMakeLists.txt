@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(apriltag_ros)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 20)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Werror -Wall -Wextra -Wpedantic)
@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
 
 find_package(Threads REQUIRED)
 
-find_package(apriltag 3.3 REQUIRED)
+find_package(apriltag 3.2 REQUIRED)
 
 add_library(utils src/tag_functions.cpp)
 target_link_libraries(utils apriltag::apriltag)
