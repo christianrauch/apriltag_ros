@@ -1,0 +1,47 @@
+launch:
+- arg:
+    name: device
+    default: "0"
+
+- node_container:
+    pkg: rclcpp_components
+    exec: component_container
+    name: apriltag_container
+    namespace: ""
+    composable_node:
+    - pkg: v4l2_camera
+      plugin: v4l2_camera::V4L2Camera
+      name: camera
+      namespace: v4l2
+      param:
+      - name: video_device
+        value: /dev/video$(var device)
+      extra_arg:
+      - name: use_intra_process_comms
+        value: "True"
+
+    - pkg: image_proc
+      plugin: image_proc::RectifyNode
+      name: rectify
+      namespace: v4l2
+      remap:
+      - from: image
+        to: image_raw
+      extra_arg:
+      - name: use_intra_process_comms
+        value: "True"
+
+    - pkg: apriltag_ros
+      plugin: AprilTagNode
+      name: apriltag
+      namespace: apriltag
+      remap:
+      - from: /apriltag/image_rect
+        to: /v4l2/image_rect
+      - from: /apriltag/camera_info
+        to: /v4l2/camera_info
+      param:
+      - from: $(find-pkg-share apriltag_ros)/cfg/tags_36h11.yaml
+      extra_arg:
+      - name: use_intra_process_comms
+        value: "True"

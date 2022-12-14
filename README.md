@@ -58,7 +58,7 @@ Instead of publishing all tag poses, the list `tag.ids` can be used to only publ
 
 The remaining parameters are set to the their default values from the library. See `apriltag.h` for a more detailed description of their function.
 
-See [tags_36h11.yaml](cfg/tags_36h11.yaml) for an example configuration that publishes specific tag poses of the 16h5 family.
+See [tags_36h11.yaml](cfg/tags_36h11.yaml) for an example configuration that publishes specific tag poses of the 36h11 family.
 
 ## Nodes
 
@@ -81,7 +81,7 @@ apriltag_ros
   AprilTagNode
 ```
 
-This `AprilTagNode` component can be loaded with other nodes into a "container node" process where they used shared-memory communication to prevent unnecessary data copies. The example launch file [tag_36h11_all.launch.py](launch//tag_36h11_all.launch.py) loads the `AprilTagNode` together with the `usb_cam::UsbCamNode` component from the [`usb_cam` package](https://github.com/ros-drivers/usb_cam) (`sudo apt install ros-$ROS_DISTRO-usb-cam`) into one container and enables `use_intra_process_comms` for both:
+This `AprilTagNode` component can be loaded with other nodes into a "container node" process where they used shared-memory communication to prevent unnecessary data copies. The example launch file [v4l2_36h11.launch.yml](launch/v4l2_36h11.launch.yml) loads the `AprilTagNode` component together with the `v4l2_camera::V4L2Camera` component from the [`v4l2_camera` package](https://gitlab.com/boldhearts/ros2_v4l2_camera) (`sudo apt install ros-$ROS_DISTRO-v4l2-camera`) into one container and enables `use_intra_process_comms` for both:
 ```sh
-ros2 launch apriltag_ros tag_36h11_all.launch.py
+ros2 launch apriltag_ros v4l2_36h11.launch.yml
 ```
