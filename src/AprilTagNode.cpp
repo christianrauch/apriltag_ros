@@ -18,28 +18,62 @@
 
 
 #define IF(N, V) if (assign_check(parameter, N, V)) continue;
+#define IFB(N, V) if (assign_check<decltype(V), bool>(parameter, N, V)) continue;
 
-template<typename T>
-void assign(const rclcpp::Parameter& parameter, T& var)
+//template<typename T, typename P = T>
+//void assign(const rclcpp::Parameter& parameter, T& var)
+//{
+//    var = parameter.get_value<P>();
+//}
+
+//template<typename T, typename P = T>
+//void assign(const rclcpp::Parameter& parameter, std::atomic<T>& var)
+//{
+//    var = parameter.get_value<P>();
+//}
+
+//void assign(const auto& parameter, auto& var)
+//{
+//    var = parameter;
+//}
+
+template<typename T, typename P = T>
+bool assign_check(const rclcpp::Parameter& parameter, const std::string& name, std::atomic<T>& var)
 {
-    var = parameter.get_value<T>();
+//  std::atomic<bool> bb;
+//  decltype(bb)::value_type cc;
+  // <std::remove_reference<decltype(var)>::type::value_type, P>
+//  return assign_check<decltype(bb)::value_type,P>(parameter, name, var);
+
+//  return assign_check<typename std::remove_reference<decltype(var)>::type::value_type, P>(parameter, name, var);
+
+  std::cout << "ignore atomic" << std::endl;
+
+  (void) parameter;
+  (void) name;
+  (void) var;
+  return true;
 }
 
-template<typename T>
-void assign(const rclcpp::Parameter& parameter, std::atomic<T>& var)
-{
-    var = parameter.get_value<T>();
-}
-
-template<typename T>
+template<typename T, typename P = T>
 bool assign_check(const rclcpp::Parameter& parameter, const std::string& name, T& var)
 {
+    std::cout << "name ... " << name << std::endl;
     if (parameter.get_name() == name) {
         try {
-          assign(parameter, var);
+          std::atomic<bool> bb;
+          decltype(bb)::value_type cc;
+          (void)cc;
+//          P aa = parameter.get_value<P>();
+//          assign(parameter.get_value<P>(), var);
+          std::cout << "auto convert ... " << name << std::endl;
+          var = parameter.get_value<P>();
         } catch (const rclcpp::exceptions::InvalidParameterTypeException &e) {
-          if (std::string(e.what()).ends_with("expected [integer] got [bool]"))
-            var = parameter.get_value<bool>();
+          if (std::string(e.what()).ends_with("expected [integer] got [bool]")) {
+            std::cout << "auto convert" << std::endl;
+//            var = parameter.get_value<bool>();
+//            assign<decltype(var), bool>(parameter, var);
+          }
           else
             throw;
         }
