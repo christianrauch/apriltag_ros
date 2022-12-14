@@ -150,13 +150,13 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     declare_parameter("detector.threads", td->nthreads, descr("number of threads"));
     declare_parameter("detector.decimate", td->quad_decimate, descr("decimate resolution for quad detection"));
     declare_parameter("detector.blur", td->quad_sigma, descr("sigma of Gaussian blur for quad detection"));
-    declare_parameter<bool>("detector.refine", td->refine_edges, descr("snap to strong gradients"));
+    declare_parameter("detector.refine", td->refine_edges, descr("snap to strong gradients"));
     declare_parameter("detector.sharpening", td->decode_sharpening, descr("sharpening of decoded images"));
-    declare_parameter<bool>("detector.debug", td->debug, descr("write additional debugging images to working directory"));
+    declare_parameter("detector.debug", td->debug, descr("write additional debugging images to working directory"));
 
-    declare_parameter<int>("max_hamming", 0, descr("reject detections with more corrected bits than allowed"));
+    declare_parameter("max_hamming", 0, descr("reject detections with more corrected bits than allowed"));
     declare_parameter("profile", false, descr("print profiling information to stdout"));
-    declare_parameter<bool>("z_up", true, descr("let the z axis of the tag frame point up"));
+    declare_parameter("z_up", true, descr("let the z axis of the tag frame point up"));
 
     if(!frames.empty()) {
         if(ids.size()!=frames.size()) {
