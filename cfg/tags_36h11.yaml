@@ -4,7 +4,6 @@ apriltag:
         family: 36h11           # tag family name
         size: 0.173             # tag edge size in meter
         max_hamming: 0          # maximum allowed hamming distance (corrected bits)
-        z_up: true              # rotate about x-axis to have Z pointing upwards
 
         # see "apriltag.h" 'struct apriltag_detector' for more documentation on these optional parameters
         detector:

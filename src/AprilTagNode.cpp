@@ -58,8 +58,7 @@ descr(const std::string& description, const bool& read_only = false)
 void getPose(const matd_t& H,
              const Mat3& Pinv,
              geometry_msgs::msg::Transform& t,
-             const double size,
-             const bool z_up)
+             const double size)
 {
     // compute extrinsic camera parameter
     // https://dsp.stackexchange.com/a/2737/31703
@@ -70,11 +69,10 @@ void getPose(const matd_t& H,
     R.col(1) = T.col(1).normalized();
     R.col(2) = R.col(0).cross(R.col(1));
 
-    if(z_up) {
-        // rotate by half rotation about x-axis
-        R.col(1) *= -1;
-        R.col(2) *= -1;
-    }
+    // rotate by half rotation about x-axis to have z-axis
+    // point upwards orthogonal to the tag plane
+    R.col(1) *= -1;
+    R.col(2) *= -1;
 
     // the corner coordinates of the tag in the canonical frame are (+/-1, +/-1)
     // hence the scale is half of the edge size
@@ -111,7 +109,6 @@ private:
     std::atomic<bool> profile;
     std::unordered_map<int, std::string> tag_frames;
     std::unordered_map<int, double> tag_sizes;
-    std::atomic<bool> z_up;
 
     std::function<void(apriltag_family_t*)> tf_destructor;
 
@@ -156,7 +153,6 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
     declare_parameter("max_hamming", 0, descr("reject detections with more corrected bits than allowed"));
     declare_parameter("profile", false, descr("print profiling information to stdout"));
-    declare_parameter("z_up", true, descr("let the z axis of the tag frame point up"));
 
     if(!frames.empty()) {
         if(ids.size()!=frames.size()) {
@@ -244,7 +240,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         tf.header = msg_img->header;
         // set child frame name by generic tag name or configured tag name
         tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name)+":"+std::to_string(det->id);
-        getPose(*(det->H), Pinv, tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size, z_up);
+        getPose(*(det->H), Pinv, tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size);
 
         tfs.push_back(tf);
     }
@@ -273,7 +269,6 @@ AprilTagNode::onParameter(const std::vector<rclcpp::Parameter>& parameters)
         IF("detector.debug", td->debug)
         IF("max_hamming", max_hamming)
         IF("profile", profile)
-        IF("z_up", z_up)
     }
 
     mutex.unlock();

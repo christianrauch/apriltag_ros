@@ -8,7 +8,6 @@ cfg_36h11 = {
     "family": "36h11",
     "size": 0.162,
     "max_hamming": 0,
-    "z_up": True
 }
 
 def generate_launch_description():

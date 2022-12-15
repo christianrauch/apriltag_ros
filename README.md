@@ -32,7 +32,6 @@ apriltag:                 # node name
     image_transport: raw  # image format: "raw" or "compressed"
     family: 36h11         # tag family name: 16h5, 25h9, 36h11
     size: 1.0             # default tag edge size in meter
-    z_up: true            # rotate about x-axis to have Z pointing upwards
     profile: false        # print profiling information to stdout
 
     # tuning of detection (defaults)
