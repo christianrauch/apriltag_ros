@@ -7,14 +7,14 @@ For more information on AprilTag, the paper and the reference implementation: ht
 ## Topics
 
 ### Subscriptions:
-The node subscribes via a `image_transport::CameraSubscriber` to rectified images on `/apriltag/image_rect`. The set of topic names depends on the type of image transport (parameter `image_transport`) selected (`raw` or `compressed`):
-- `/apriltag/image_rect` (`raw`, type: `sensor_msgs/Image`)
-- `/apriltag/image_rect/compressed` (`compressed`, type: `sensor_msgs/CompressedImage`)
-- `/apriltag/camera_info` (type: `sensor_msgs/CameraInfo`)
+The node subscribes via a `image_transport::CameraSubscriber` to rectified images on topic `image_rect`. The set of topic names depends on the type of image transport (parameter `image_transport`) selected (`raw` or `compressed`):
+- `image_rect` (`raw`, type: `sensor_msgs/msg/Image`)
+- `image_rect/compressed` (`compressed`, type: `sensor_msgs/msg/CompressedImage`)
+- `camera_info` (type: `sensor_msgs/msg/CameraInfo`)
 
 ### Publisher:
-- `/tf` (type: `tf2_msgs/TFMessage`)
-- `/apriltag/detections` (type: `apriltag_msgs/AprilTagDetectionArray`)
+- `/tf` (type: `tf2_msgs/msg/TFMessage`)
+- `detections` (type: `apriltag_msgs/msg/AprilTagDetectionArray`)
 
 The camera intrinsics `P` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The image and the camera intrinsics need to have the same timestamp.
 
@@ -67,8 +67,8 @@ See [tags_36h11.yaml](cfg/tags_36h11.yaml) for an example configuration that pub
 The `apriltag_node` executable can be launched with topic remappings and a configuration file:
 ```sh
 ros2 run apriltag_ros apriltag_node --ros-args \
-    -r /apriltag/image_rect:=/camera/image \
-    -r /apriltag/camera_info:=/camera/camera_info \
+    -r image_rect:=/camera/image \
+    -r camera_info:=/camera/camera_info \
     --params-file `ros2 pkg prefix apriltag_ros`/share/apriltag_ros/cfg/tags_36h11.yaml
 ```
 
