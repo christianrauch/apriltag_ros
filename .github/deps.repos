@@ -1,0 +1,4 @@
+repositories:
+  src/apriltag_msgs:
+    type: git
+    url: https://github.com/christianrauch/apriltag_msgs.git
