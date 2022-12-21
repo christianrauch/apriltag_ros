@@ -8,7 +8,7 @@
         # see "apriltag.h" 'struct apriltag_detector' for more documentation on these optional parameters
         detector:
             threads: 1          # number of threads
-            decimate: 1.0       # decimate resolution for quad detection
+            decimate: 2.0       # decimate resolution for quad detection
             blur: 0.0           # sigma of Gaussian blur for quad detection
             refine: 1           # snap to strong gradients
             sharpening: 0.25    # sharpening of decoded images
