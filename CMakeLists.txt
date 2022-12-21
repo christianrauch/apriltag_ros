@@ -32,7 +32,6 @@ rclcpp_components_register_node(AprilTagNode PLUGIN "AprilTagNode" EXECUTABLE "a
 ament_environment_hooks(${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH})
 
 install(TARGETS AprilTagNode
-    EXPORT export_${PROJECT_NAME}
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
 )
