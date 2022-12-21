@@ -9,6 +9,29 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_link_options("-Wl,-z,relro,-z,now,-z,defs")
 endif()
 
+option(ASAN "use AddressSanitizer to detect memory issues" OFF)
+
+if(ASAN)
+    set(ASAN_FLAGS "\
+        -fsanitize=address \
+        -fsanitize=bool \
+        -fsanitize=bounds \
+        -fsanitize=enum \
+        -fsanitize=float-cast-overflow \
+        -fsanitize=float-divide-by-zero \
+        -fsanitize=nonnull-attribute \
+        -fsanitize=returns-nonnull-attribute \
+        -fsanitize=signed-integer-overflow \
+        -fsanitize=undefined \
+        -fsanitize=vla-bound \
+        -fno-sanitize=alignment \
+        -fsanitize=leak \
+        -fsanitize=object-size \
+    ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ASAN_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ASAN_FLAGS}")
+endif()
+
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
