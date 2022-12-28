@@ -169,9 +169,9 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         for(size_t i = 0; i<ids.size(); i++) { tag_sizes[ids[i]] = sizes[i]; }
     }
 
-    if(tag_create.count(tag_family)) {
-        tf = tag_create.at(tag_family)();
-        tf_destructor = tag_destroy.at(tag_family);
+    if(tag_fun.count(tag_family)) {
+        tf = tag_fun.at(tag_family).first();
+        tf_destructor = tag_fun.at(tag_family).second;
         apriltag_detector_add_family(td, tf);
     }
     else {

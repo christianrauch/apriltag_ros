@@ -1,9 +1,8 @@
 #pragma once
 
 #include <apriltag.h>
-#include <map>
+#include <unordered_map>
 #include <string>
 
-extern const std::map<std::string, apriltag_family_t *(*)(void)> tag_create;
 
-extern const std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy;
+extern const std::unordered_map<std::string, std::pair<apriltag_family_t *(*)(void), void (*)(apriltag_family_t*)>> tag_fun;

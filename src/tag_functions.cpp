@@ -11,30 +11,17 @@
 #include <tagStandard52h13.h>
 
 // create and delete functions for default tags
-#define TAG_CREATE(name) { #name, tag##name##_create },
-#define TAG_DESTROY(name) { #name, tag##name##_destroy },
+#define TAG_FUN(name) { #name, {tag##name##_create, tag##name##_destroy} },
 
 // function pointer for tag family creation / destruction
-const std::map<std::string, apriltag_family_t *(*)(void)> tag_create =
+const std::unordered_map<std::string, std::pair<apriltag_family_t *(*)(void), void (*)(apriltag_family_t*)>> tag_fun =
 {
-    TAG_CREATE(36h11)
-    TAG_CREATE(25h9)
-    TAG_CREATE(16h5)
-    TAG_CREATE(Circle21h7)
-    TAG_CREATE(Circle49h12)
-    TAG_CREATE(Custom48h12)
-    TAG_CREATE(Standard41h12)
-    TAG_CREATE(Standard52h13)
-};
-
-const std::map<std::string, void (*)(apriltag_family_t*)> tag_destroy =
-{
-    TAG_DESTROY(36h11)
-    TAG_DESTROY(25h9)
-    TAG_DESTROY(16h5)
-    TAG_DESTROY(Circle21h7)
-    TAG_DESTROY(Circle49h12)
-    TAG_DESTROY(Custom48h12)
-    TAG_DESTROY(Standard41h12)
-    TAG_DESTROY(Standard52h13)
+    TAG_FUN(36h11)
+    TAG_FUN(25h9)
+    TAG_FUN(16h5)
+    TAG_FUN(Circle21h7)
+    TAG_FUN(Circle49h12)
+    TAG_FUN(Custom48h12)
+    TAG_FUN(Standard41h12)
+    TAG_FUN(Standard52h13)
 };
