@@ -43,6 +43,10 @@ find_package(Eigen3 REQUIRED)
 find_package(Threads REQUIRED)
 find_package(apriltag 3.2 REQUIRED)
 
+if(cv_bridge_VERSION VERSION_GREATER_EQUAL 3.3.0)
+    add_compile_definitions(cv_bridge_HPP)
+endif()
+
 add_library(tags OBJECT src/tag_functions.cpp)
 target_link_libraries(tags apriltag::apriltag)
 set_property(TARGET tags PROPERTY POSITION_INDEPENDENT_CODE ON)
