@@ -17,6 +17,7 @@
 // apriltag
 #include "tag_functions.hpp"
 #include <apriltag.h>
+#include <apriltag/apriltag_pose.h>
 
 #include <Eigen/Dense>
 
@@ -48,6 +49,7 @@ bool assign_check(const rclcpp::Parameter& parameter, const std::string& name, T
 
 
 typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
+typedef std::function<geometry_msgs::msg::Transform(apriltag_detection_t* const, const Mat3&, double)> estim_pose_f;
 
 rcl_interfaces::msg::ParameterDescriptor
 descr(const std::string& description, const bool& read_only = false)
@@ -74,6 +76,48 @@ void getPose(const matd_t& H,
     R.col(1) = T.col(1).normalized();
     R.col(2) = R.col(0).cross(R.col(1));
 
+    // Option 2: "orthogonal iteration" https://github.com/AprilRobotics/apriltag/wiki/AprilTag-User-Guide#pose-estimation
+    //    apriltag_detection_info_t info;
+    //    info.det = det;
+    //    info.tagsize = tagsize;
+    //    info.fx = fx;
+    //    info.fy = fy;
+    //    info.cx = cx;
+    //    info.cy = cy;
+
+    //    apriltag_pose_t pose;
+    //    double err = estimate_tag_pose(&info, &pose);
+
+    //    Mat3 R = pose.R->data;
+    //    const Eigen::Vector3d tt = pose.t->data;
+
+    // Option 3: "solvePnP" https://github.com/AprilRobotics/apriltag_ros/blob/94b3b843324f6b64edc6ca59f9729e9021308406/apriltag_ros/src/common_functions.cpp#L494-L522
+    //    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();  // homogeneous transformation matrix
+
+    //    // perform Perspective-n-Point camera pose estimation using the
+    //    // above 3D-2D point correspondences
+    //    cv::Mat rvec, tvec;
+    //    cv::Matx33d cameraMatrix(fx,  0, cx,
+    //                             0,  fy, cy,
+    //                             0,   0,  1);
+    //    cv::Vec4f distCoeffs(0,0,0,0); // distortion coefficients
+    //    // TODO Perhaps something like SOLVEPNP_EPNP would be faster? Would
+    //    // need to first check WHAT is a bottleneck in this code, and only
+    //    // do this if PnP solution is the bottleneck.
+    //    cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, rvec, tvec);
+    //    cv::Matx33d R;
+    //    cv::Rodrigues(rvec, R);
+
+    //    // rotation
+    //    T.linear() << R(0,0), R(0,1), R(0,2), R(1,0), R(1,1), R(1,2), R(2,0), R(2,1), R(2,2);
+
+    //    // translation
+    //    T.translation() = Eigen::Vector3d::Map(reinterpret_cast<const double*>(tvec.data));
+
+    //    // Then call estimate_tag_pose.
+    //    apriltag_pose_t pose;
+    //    double err = estimate_tag_pose(&info, &pose);
+
     // rotate by half rotation about x-axis to have z-axis
     // point upwards orthogonal to the tag plane
     R.col(1) *= -1;
@@ -94,6 +138,76 @@ void getPose(const matd_t& H,
     t.rotation.z = q.z();
 }
 
+geometry_msgs::msg::Transform tf_from_eigen(const Eigen::Vector3d& translation, const Mat3& rotation)
+{
+    const Eigen::Quaterniond q(rotation);
+
+    geometry_msgs::msg::Transform t;
+
+    t.translation.x = translation.x();
+    t.translation.y = translation.y();
+    t.translation.z = translation.z();
+    t.rotation.w = q.w();
+    t.rotation.x = q.x();
+    t.rotation.y = q.y();
+    t.rotation.z = q.z();
+
+    return t;
+}
+
+// pose computation
+// in:
+//  (0) H (det), P, size
+//  (1) "estimate_pose_for_tag_homography": det, P, size
+//  (2) "solvePnP": object points (size), image points (det), P
+// out: geometry_msgs::msg::Transform
+
+estim_pose_f eigen = [](const apriltag_detection_t* const detection, const Mat3& P, double size) -> geometry_msgs::msg::Transform {
+    // compute extrinsic camera parameter
+    // https://dsp.stackexchange.com/a/2737/31703
+    // H = K * T  =>  T = K^(-1) * H
+    const Mat3 T = P.inverse() * Eigen::Map<const Mat3>(detection->H->data);
+    Mat3 R;
+    R.col(0) = T.col(0).normalized();
+    R.col(1) = T.col(1).normalized();
+    R.col(2) = R.col(0).cross(R.col(1));
+
+    // rotate by half rotation about x-axis to have z-axis
+    // point upwards orthogonal to the tag plane
+    R.col(1) *= -1;
+    R.col(2) *= -1;
+
+    // the corner coordinates of the tag in the canonical frame are (+/-1, +/-1)
+    // hence the scale is half of the edge size
+    const Eigen::Vector3d tt = T.rightCols<1>() / ((T.col(0).norm() + T.col(0).norm()) / 2.0) * (size / 2.0);
+
+    return tf_from_eigen(tt, R);
+};
+
+estim_pose_f opt2 = [](apriltag_detection_t* const detection, const Mat3& P, double tagsize) -> geometry_msgs::msg::Transform {
+    // Option 2: "orthogonal iteration"
+    // https://github.com/AprilRobotics/apriltag/wiki/AprilTag-User-Guide#pose-estimation
+    apriltag_detection_info_t info;
+    info.det = detection;
+    info.tagsize = tagsize;
+    info.fx = P(0, 0);
+    info.fy = P(1, 1);
+    info.cx = P(0, 1);
+    info.cy = P(1, 0);
+
+    apriltag_pose_t pose;
+    /*double err = */ estimate_tag_pose(&info, &pose);
+
+    return tf_from_eigen(Eigen::Map<const Eigen::Vector3d>(pose.t->data), Eigen::Map<const Mat3>(pose.R->data));
+};
+
+estim_pose_f opt3 = [](apriltag_detection_t* const detection, const Mat3& P, double tagsize) -> geometry_msgs::msg::Transform {
+    // cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, rvec, tvec);
+    // cv::Matx33d R;
+    // cv::Rodrigues(rvec, R);
+
+    return geometry_msgs::msg::Transform();
+};
 
 class AprilTagNode : public rclcpp::Node {
 public:
@@ -120,6 +234,8 @@ private:
     const image_transport::CameraSubscriber sub_cam;
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
     tf2_ros::TransformBroadcaster tf_broadcaster;
+
+    estim_pose_f estimate_pose;
 
     void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
 
@@ -182,6 +298,8 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     else {
         throw std::runtime_error("Unsupported tag family: " + tag_family);
     }
+
+    estimate_pose = eigen;
 }
 
 AprilTagNode::~AprilTagNode()
@@ -193,8 +311,8 @@ AprilTagNode::~AprilTagNode()
 void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
                             const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci)
 {
-    // precompute inverse projection matrix
-    const Mat3 Pinv = Eigen::Map<const Eigen::Matrix<double, 3, 4, Eigen::RowMajor>>(msg_ci->p.data()).leftCols<3>().inverse();
+    // camera intrinsic matrix for rectified images
+    const Mat3 P = Eigen::Map<const Eigen::Matrix<double, 3, 4, Eigen::RowMajor>>(msg_ci->p.data()).leftCols<3>();
 
     // convert to 8bit monochrome image
     const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
@@ -246,7 +364,9 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         tf.header = msg_img->header;
         // set child frame name by generic tag name or configured tag name
         tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name) + ":" + std::to_string(det->id);
-        getPose(*(det->H), Pinv, tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size);
+        //        getPose(*(det->H), Pinv, tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size);
+        const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
+        tf.transform = estimate_pose(det, P, size);
 
         tfs.push_back(tf);
     }
