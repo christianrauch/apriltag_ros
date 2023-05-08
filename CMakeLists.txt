@@ -41,6 +41,7 @@ find_package(image_transport REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(Threads REQUIRED)
+find_package(OpenCV REQUIRED)
 find_package(apriltag 3.2 REQUIRED)
 
 if(cv_bridge_VERSION VERSION_GREATER_EQUAL 3.3.0)
@@ -53,7 +54,8 @@ set_property(TARGET tags PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_library(AprilTagNode SHARED src/AprilTagNode.cpp)
 ament_target_dependencies(AprilTagNode rclcpp rclcpp_components sensor_msgs apriltag_msgs tf2_ros image_transport cv_bridge)
-target_link_libraries(AprilTagNode apriltag::apriltag tags Eigen3::Eigen)
+target_include_directories(AprilTagNode PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(AprilTagNode apriltag::apriltag tags Eigen3::Eigen ${OpenCV_LIBS})
 rclcpp_components_register_node(AprilTagNode PLUGIN "AprilTagNode" EXECUTABLE "apriltag_node")
 
 ament_environment_hooks(${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH})

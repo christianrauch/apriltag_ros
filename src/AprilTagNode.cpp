@@ -1,6 +1,7 @@
 // ros
 #include <apriltag_msgs/msg/april_tag_detection.hpp>
 #include <apriltag_msgs/msg/april_tag_detection_array.hpp>
+#include <opencv2/calib3d.hpp>
 #ifdef cv_bridge_HPP
 #include <cv_bridge/cv_bridge.hpp>
 #else
@@ -18,8 +19,11 @@
 #include "tag_functions.hpp"
 #include <apriltag.h>
 #include <apriltag/apriltag_pose.h>
+#include <apriltag/common/homography.h>
 
 #include <Eigen/Dense>
+#include <opencv2/core/eigen.hpp>
+#include <opencv2/core/quaternion.hpp>
 
 
 #define IF(N, V) \
@@ -155,6 +159,23 @@ geometry_msgs::msg::Transform tf_from_eigen(const Eigen::Vector3d& translation, 
     return t;
 }
 
+geometry_msgs::msg::Transform tf_from_cv(const cv::Mat_<double>& tvec, const cv::Mat_<double>& rvec)
+{
+    const auto q = cv::Quat<double>::createFromRvec(rvec);
+
+    geometry_msgs::msg::Transform t;
+
+    t.translation.x = tvec.at<double>(0);
+    t.translation.y = tvec.at<double>(1);
+    t.translation.z = tvec.at<double>(2);
+    t.rotation.w = q.w;
+    t.rotation.x = q.x;
+    t.rotation.y = q.y;
+    t.rotation.z = q.z;
+
+    return t;
+}
+
 // pose computation
 // in:
 //  (0) H (det), P, size
@@ -202,11 +223,30 @@ estim_pose_f opt2 = [](apriltag_detection_t* const detection, const Mat3& P, dou
 };
 
 estim_pose_f opt3 = [](apriltag_detection_t* const detection, const Mat3& P, double tagsize) -> geometry_msgs::msg::Transform {
-    // cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, rvec, tvec);
-    // cv::Matx33d R;
-    // cv::Rodrigues(rvec, R);
+    std::vector<cv::Point3d> objectPoints;
+    objectPoints.emplace_back(-tagsize, -tagsize, 0);
+    objectPoints.emplace_back(+tagsize, -tagsize, 0);
+    objectPoints.emplace_back(+tagsize, +tagsize, 0);
+    objectPoints.emplace_back(-tagsize, +tagsize, 0);
 
-    return geometry_msgs::msg::Transform();
+    std::vector<cv::Point2d> imagePoints;
+    double tag_x[4] = {-1, 1, 1, -1};
+    double tag_y[4] = {1, 1, -1, -1};
+    for(int i = 0; i < 4; i++) {
+        // Homography projection taking tag local frame coordinates to image pixels
+        double im_x, im_y;
+        homography_project(detection->H, tag_x[i], tag_y[i], &im_x, &im_y);
+        imagePoints.push_back(cv::Point2d(im_x, im_y));
+    }
+
+    cv::Mat rvec, tvec;
+    cv::Matx33d cameraMatrix;
+    cv::eigen2cv(P, cameraMatrix);
+    cv::solvePnP(objectPoints, imagePoints, cameraMatrix, {}, rvec, tvec);
+    //    cv::Matx33d R;
+    //    cv::Rodrigues(rvec, R);
+
+    return tf_from_cv(tvec, rvec);
 };
 
 class AprilTagNode : public rclcpp::Node {
