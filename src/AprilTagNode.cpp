@@ -176,14 +176,8 @@ geometry_msgs::msg::Transform tf_from_cv(const cv::Mat_<double>& tvec, const cv:
     return t;
 }
 
-// pose computation
-// in:
-//  (0) H (det), P, size
-//  (1) "estimate_pose_for_tag_homography": det, P, size
-//  (2) "solvePnP": object points (size), image points (det), P
-// out: geometry_msgs::msg::Transform
 
-estim_pose_f eigen = [](const apriltag_detection_t* const detection, const Mat3& P, double size) -> geometry_msgs::msg::Transform {
+estim_pose_f from_homography = [](const apriltag_detection_t* const detection, const Mat3& P, double size) -> geometry_msgs::msg::Transform {
     // compute extrinsic camera parameter
     // https://dsp.stackexchange.com/a/2737/31703
     // H = K * T  =>  T = K^(-1) * H
@@ -205,8 +199,7 @@ estim_pose_f eigen = [](const apriltag_detection_t* const detection, const Mat3&
     return tf_from_eigen(tt, R);
 };
 
-estim_pose_f opt2 = [](apriltag_detection_t* const detection, const Mat3& P, double tagsize) -> geometry_msgs::msg::Transform {
-    // Option 2: "orthogonal iteration"
+estim_pose_f apriltag_orthogonal_iteration = [](apriltag_detection_t* const detection, const Mat3& P, double tagsize) -> geometry_msgs::msg::Transform {
     // https://github.com/AprilRobotics/apriltag/wiki/AprilTag-User-Guide#pose-estimation
     apriltag_detection_info_t info;
     info.det = detection;
@@ -222,7 +215,22 @@ estim_pose_f opt2 = [](apriltag_detection_t* const detection, const Mat3& P, dou
     return tf_from_eigen(Eigen::Map<const Eigen::Vector3d>(pose.t->data), Eigen::Map<const Mat3>(pose.R->data));
 };
 
-estim_pose_f opt3 = [](apriltag_detection_t* const detection, const Mat3& P, double tagsize) -> geometry_msgs::msg::Transform {
+estim_pose_f apriltag_homography = [](apriltag_detection_t* const detection, const Mat3& P, double tagsize) -> geometry_msgs::msg::Transform {
+    apriltag_detection_info_t info;
+    info.det = detection;
+    info.tagsize = tagsize;
+    info.fx = P(0, 0);
+    info.fy = P(1, 1);
+    info.cx = P(0, 1);
+    info.cy = P(1, 0);
+
+    apriltag_pose_t pose;
+    estimate_pose_for_tag_homography(&info, &pose);
+
+    return tf_from_eigen(Eigen::Map<const Eigen::Vector3d>(pose.t->data), Eigen::Map<const Mat3>(pose.R->data));
+};
+
+estim_pose_f solve_pnp = [](apriltag_detection_t* const detection, const Mat3& P, double tagsize) -> geometry_msgs::msg::Transform {
     std::vector<cv::Point3d> objectPoints;
     objectPoints.emplace_back(-tagsize, -tagsize, 0);
     objectPoints.emplace_back(+tagsize, -tagsize, 0);
@@ -242,6 +250,7 @@ estim_pose_f opt3 = [](apriltag_detection_t* const detection, const Mat3& P, dou
     cv::Mat rvec, tvec;
     cv::Matx33d cameraMatrix;
     cv::eigen2cv(P, cameraMatrix);
+    // with "SOLVEPNP_IPPE_SQUARE"?
     cv::solvePnP(objectPoints, imagePoints, cameraMatrix, {}, rvec, tvec);
     //    cv::Matx33d R;
     //    cv::Rodrigues(rvec, R);
@@ -339,7 +348,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         throw std::runtime_error("Unsupported tag family: " + tag_family);
     }
 
-    estimate_pose = eigen;
+    estimate_pose = from_homography;
 }
 
 AprilTagNode::~AprilTagNode()
