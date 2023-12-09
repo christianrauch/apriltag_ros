@@ -1,6 +1,6 @@
 name: CI
 
-on: push
+on: [push, pull_request]
 
 jobs:
   build:
@@ -11,11 +11,11 @@ jobs:
       image: ubuntu:22.04
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - uses: ros-tooling/setup-ros@v0.4
+    - uses: ros-tooling/setup-ros@v0.7
 
-    - uses: ros-tooling/action-ros-ci@v0.2
+    - uses: ros-tooling/action-ros-ci@v0.3
       with:
         package-name: apriltag_ros
         target-ros2-distro: humble
