@@ -1,4 +1,5 @@
 // ros
+#include "pose_estimation.hpp"
 #include <apriltag_msgs/msg/april_tag_detection.hpp>
 #include <apriltag_msgs/msg/april_tag_detection_array.hpp>
 #ifdef cv_bridge_HPP
@@ -17,8 +18,6 @@
 // apriltag
 #include "tag_functions.hpp"
 #include <apriltag.h>
-
-#include <Eigen/Dense>
 
 
 #define IF(N, V) \
@@ -46,9 +45,6 @@ bool assign_check(const rclcpp::Parameter& parameter, const std::string& name, T
     return false;
 }
 
-
-typedef Eigen::Matrix<double, 3, 3, Eigen::RowMajor> Mat3;
-
 rcl_interfaces::msg::ParameterDescriptor
 descr(const std::string& description, const bool& read_only = false)
 {
@@ -59,41 +55,6 @@ descr(const std::string& description, const bool& read_only = false)
 
     return descr;
 }
-
-void getPose(const matd_t& H,
-             const Mat3& Pinv,
-             geometry_msgs::msg::Transform& t,
-             const double size)
-{
-    // compute extrinsic camera parameter
-    // https://dsp.stackexchange.com/a/2737/31703
-    // H = K * T  =>  T = K^(-1) * H
-    const Mat3 T = Pinv * Eigen::Map<const Mat3>(H.data);
-    Mat3 R;
-    R.col(0) = T.col(0).normalized();
-    R.col(1) = T.col(1).normalized();
-    R.col(2) = R.col(0).cross(R.col(1));
-
-    // rotate by half rotation about x-axis to have z-axis
-    // point upwards orthogonal to the tag plane
-    R.col(1) *= -1;
-    R.col(2) *= -1;
-
-    // the corner coordinates of the tag in the canonical frame are (+/-1, +/-1)
-    // hence the scale is half of the edge size
-    const Eigen::Vector3d tt = T.rightCols<1>() / ((T.col(0).norm() + T.col(0).norm()) / 2.0) * (size / 2.0);
-
-    const Eigen::Quaterniond q(R);
-
-    t.translation.x = tt.x();
-    t.translation.y = tt.y();
-    t.translation.z = tt.z();
-    t.rotation.w = q.w();
-    t.rotation.x = q.x();
-    t.rotation.y = q.y();
-    t.rotation.z = q.z();
-}
-
 
 class AprilTagNode : public rclcpp::Node {
 public:
@@ -121,6 +82,8 @@ private:
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
+    pose_estimation_f estimate_pose = nullptr;
+
     void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
 
     rcl_interfaces::msg::SetParametersResult onParameter(const std::vector<rclcpp::Parameter>& parameters);
@@ -147,6 +110,9 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     const auto ids = declare_parameter("tag.ids", std::vector<int64_t>{}, descr("tag ids", true));
     const auto frames = declare_parameter("tag.frames", std::vector<std::string>{}, descr("tag frame names per id", true));
     const auto sizes = declare_parameter("tag.sizes", std::vector<double>{}, descr("tag sizes per id", true));
+
+    // get method for estimating tag pose
+    estimate_pose = pose_estimation_methods.at(declare_parameter("pose_estimation_method", "pnp", descr("pose estimation method: \"pnp\" (more accurate) or \"homography\" (faster)", true)));
 
     // detector parameters in "detector" namespace
     declare_parameter("detector.threads", td->nthreads, descr("number of threads"));
@@ -193,8 +159,8 @@ AprilTagNode::~AprilTagNode()
 void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
                             const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci)
 {
-    // precompute inverse projection matrix
-    const Mat3 Pinv = Eigen::Map<const Eigen::Matrix<double, 3, 4, Eigen::RowMajor>>(msg_ci->p.data()).leftCols<3>().inverse();
+    // camera intrinsics for rectified images
+    const std::array<double, 4> intrinsics = {msg_ci->p.data()[0], msg_ci->p.data()[5], msg_ci->p.data()[2], msg_ci->p.data()[6]};
 
     // convert to 8bit monochrome image
     const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
@@ -246,7 +212,10 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         tf.header = msg_img->header;
         // set child frame name by generic tag name or configured tag name
         tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name) + ":" + std::to_string(det->id);
-        getPose(*(det->H), Pinv, tf.transform, tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size);
+        const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
+        if(estimate_pose != nullptr) {
+            tf.transform = estimate_pose(det, intrinsics, size);
+        }
 
         tfs.push_back(tf);
     }
