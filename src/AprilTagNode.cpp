@@ -71,6 +71,7 @@ private:
     // parameter
     std::mutex mutex;
     double tag_edge_size;
+    std::string parent_frame_id; 
     std::atomic<int> max_hamming;
     std::atomic<bool> profile;
     std::unordered_map<int, std::string> tag_frames;
@@ -81,7 +82,6 @@ private:
     const image_transport::CameraSubscriber sub_cam;
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
     tf2_ros::TransformBroadcaster tf_broadcaster;
-
     pose_estimation_f estimate_pose = nullptr;
 
     void onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img, const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci);
@@ -105,6 +105,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     // read-only parameters
     const std::string tag_family = declare_parameter("family", "36h11", descr("tag family", true));
     tag_edge_size = declare_parameter("size", 1.0, descr("default tag size", true));
+    parent_frame_id = declare_parameter("parent_frame_id", "odom", descr("the frame id which is odom by default", true));
 
     // get tag names, IDs and sizes
     const auto ids = declare_parameter("tag.ids", std::vector<int64_t>{}, descr("tag ids", true));
@@ -210,6 +211,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         // 3D orientation and position
         geometry_msgs::msg::TransformStamped tf;
         tf.header = msg_img->header;
+        tf.header.frame_id = parent_frame_id;
         // set child frame name by generic tag name or configured tag name
         tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name) + ":" + std::to_string(det->id);
         const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
