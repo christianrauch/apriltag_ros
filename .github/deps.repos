@@ -1,4 +1,9 @@
 repositories:
+  src/apriltag:
+    type: git
+    url: https://github.com/AprilRobotics/apriltag.git
+    version: v3.4.2
   src/apriltag_msgs:
     type: git
     url: https://github.com/christianrauch/apriltag_msgs.git
+    version: 2.0.1
