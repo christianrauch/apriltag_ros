@@ -61,6 +61,24 @@ set_property(TARGET tags PROPERTY
 )
 
 
+# conversion functions as template specialisation
+add_library(conversion STATIC
+    src/conversion.cpp
+)
+target_link_libraries(conversion
+    apriltag::apriltag
+    Eigen3::Eigen
+    opencv_core
+)
+ament_target_dependencies(conversion
+    geometry_msgs
+    tf2
+)
+set_property(TARGET conversion PROPERTY
+    POSITION_INDEPENDENT_CODE ON
+)
+
+
 # pose estimation methods
 add_library(pose_estimation STATIC
     src/pose_estimation.cpp
@@ -68,11 +86,12 @@ add_library(pose_estimation STATIC
 target_link_libraries(pose_estimation
     apriltag::apriltag
     Eigen3::Eigen
-    opencv_core
     opencv_calib3d
+    conversion
 )
 ament_target_dependencies(pose_estimation
     geometry_msgs
+    tf2
 )
 set_property(TARGET pose_estimation PROPERTY
     POSITION_INDEPENDENT_CODE ON

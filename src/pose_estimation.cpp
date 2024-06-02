@@ -1,44 +1,10 @@
 #include "pose_estimation.hpp"
-#include <Eigen/Dense>
+#include <Eigen/Geometry>
 #include <apriltag/apriltag_pose.h>
 #include <apriltag/common/homography.h>
 #include <opencv2/calib3d.hpp>
-#include <opencv2/core/quaternion.hpp>
+#include <tf2/convert.h>
 
-
-geometry_msgs::msg::Transform tf_from_apriltag_pose(const apriltag_pose_t& pose)
-{
-    const Eigen::Quaterniond q(Eigen::Map<const Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(pose.R->data));
-
-    geometry_msgs::msg::Transform t;
-
-    t.translation.x = pose.t->data[0];
-    t.translation.y = pose.t->data[1];
-    t.translation.z = pose.t->data[2];
-    t.rotation.w = q.w();
-    t.rotation.x = q.x();
-    t.rotation.y = q.y();
-    t.rotation.z = q.z();
-
-    return t;
-}
-
-geometry_msgs::msg::Transform tf_from_cv(const cv::Mat_<double>& tvec, const cv::Mat_<double>& rvec)
-{
-    const cv::Quat<double> q = cv::Quat<double>::createFromRvec(rvec);
-
-    geometry_msgs::msg::Transform t;
-
-    t.translation.x = tvec.at<double>(0);
-    t.translation.y = tvec.at<double>(1);
-    t.translation.z = tvec.at<double>(2);
-    t.rotation.w = q.w;
-    t.rotation.x = q.x;
-    t.rotation.y = q.y;
-    t.rotation.z = q.z;
-
-    return t;
-}
 
 geometry_msgs::msg::Transform
 homography(apriltag_detection_t* const detection, const std::array<double, 4>& intr, double tagsize)
@@ -48,7 +14,7 @@ homography(apriltag_detection_t* const detection, const std::array<double, 4>& i
     apriltag_pose_t pose;
     estimate_pose_for_tag_homography(&info, &pose);
 
-    return tf_from_apriltag_pose(pose);
+    return tf2::toMsg<apriltag_pose_t, geometry_msgs::msg::Transform>(const_cast<const apriltag_pose_t&>(pose));
 }
 
 geometry_msgs::msg::Transform
@@ -77,7 +43,7 @@ pnp(apriltag_detection_t* const detection, const std::array<double, 4>& intr, do
     cv::Mat rvec, tvec;
     cv::solvePnP(objectPoints, imagePoints, cameraMatrix, {}, rvec, tvec);
 
-    return tf_from_cv(tvec, rvec);
+    return tf2::toMsg<std::pair<cv::Mat_<double>, cv::Mat_<double>>, geometry_msgs::msg::Transform>(std::make_pair(tvec, rvec));
 }
 
 const std::unordered_map<std::string, pose_estimation_f> pose_estimation_methods{
