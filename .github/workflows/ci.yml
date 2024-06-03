@@ -10,11 +10,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - {ubuntu: "22.04", ros: humble}
-          - {ubuntu: "24.04", ros: jazzy}
+          - {image: "ubuntu:22.04", ros: humble}
+          - {image: "ubuntu:24.04", ros: jazzy}
+          - {image: "almalinux:8", ros: humble}
+          - {image: "almalinux:9", ros: jazzy}
 
     container:
-      image: ubuntu:${{ matrix.ubuntu }}
+      image: ${{ matrix.image }}
 
     steps:
     - uses: actions/checkout@v4
