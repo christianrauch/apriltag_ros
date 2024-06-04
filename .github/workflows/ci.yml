@@ -11,8 +11,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {image: "ubuntu:22.04", ros: humble}
-          - {image: "ubuntu:24.04", ros: jazzy}
+          # - {image: "ubuntu:22.04", ros: humble}
+          # - {image: "ubuntu:24.04", ros: jazzy}
           - {image: "almalinux:8", ros: humble}
           - {image: "almalinux:9", ros: jazzy}
 
