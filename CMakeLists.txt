@@ -41,27 +41,85 @@ find_package(image_transport REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(Threads REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core calib3d)
 find_package(apriltag 3.2 REQUIRED)
 
 if(cv_bridge_VERSION VERSION_GREATER_EQUAL 3.3.0)
     add_compile_definitions(cv_bridge_HPP)
 endif()
 
-add_library(tags OBJECT src/tag_functions.cpp)
-target_link_libraries(tags apriltag::apriltag)
-set_property(TARGET tags PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-add_library(pose_estimation OBJECT src/pose_estimation.cpp)
-target_include_directories(pose_estimation PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(pose_estimation apriltag::apriltag Eigen3::Eigen ${OpenCV_LIBS})
-set_property(TARGET pose_estimation PROPERTY POSITION_INDEPENDENT_CODE ON)
-ament_target_dependencies(pose_estimation tf2_ros)
+# database of tag functions
+add_library(tags STATIC
+    src/tag_functions.cpp
+)
+target_link_libraries(tags
+    apriltag::apriltag
+)
+set_property(TARGET tags PROPERTY
+    POSITION_INDEPENDENT_CODE ON
+)
 
-add_library(AprilTagNode SHARED src/AprilTagNode.cpp)
-ament_target_dependencies(AprilTagNode rclcpp rclcpp_components sensor_msgs apriltag_msgs tf2_ros image_transport cv_bridge)
-target_link_libraries(AprilTagNode apriltag::apriltag tags pose_estimation Eigen3::Eigen)
-rclcpp_components_register_node(AprilTagNode PLUGIN "AprilTagNode" EXECUTABLE "apriltag_node")
+
+# conversion functions as template specialisation
+add_library(conversion STATIC
+    src/conversion.cpp
+)
+target_link_libraries(conversion
+    apriltag::apriltag
+    Eigen3::Eigen
+    opencv_core
+)
+ament_target_dependencies(conversion
+    geometry_msgs
+    tf2
+)
+set_property(TARGET conversion PROPERTY
+    POSITION_INDEPENDENT_CODE ON
+)
+
+
+# pose estimation methods
+add_library(pose_estimation STATIC
+    src/pose_estimation.cpp
+)
+target_link_libraries(pose_estimation
+    apriltag::apriltag
+    Eigen3::Eigen
+    opencv_calib3d
+    conversion
+)
+ament_target_dependencies(pose_estimation
+    geometry_msgs
+    tf2
+)
+set_property(TARGET pose_estimation PROPERTY
+    POSITION_INDEPENDENT_CODE ON
+)
+
+
+# composable node
+add_library(AprilTagNode SHARED
+    src/AprilTagNode.cpp
+)
+ament_target_dependencies(AprilTagNode
+    rclcpp
+    rclcpp_components
+    sensor_msgs
+    apriltag_msgs
+    tf2_ros
+    image_transport
+    cv_bridge
+)
+target_link_libraries(AprilTagNode
+    apriltag::apriltag
+    tags
+    pose_estimation
+)
+rclcpp_components_register_node(AprilTagNode
+    PLUGIN "AprilTagNode"
+    EXECUTABLE "apriltag_node"
+)
 
 ament_environment_hooks(${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH})
 
@@ -70,9 +128,13 @@ install(TARGETS AprilTagNode
     LIBRARY DESTINATION lib
 )
 
-install(DIRECTORY cfg/ DESTINATION share/${PROJECT_NAME}/cfg)
+install(DIRECTORY cfg
+    DESTINATION share/${PROJECT_NAME}
+)
 
-install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   set(ament_cmake_clang_format_CONFIG_FILE "${CMAKE_SOURCE_DIR}/.clang-format")
