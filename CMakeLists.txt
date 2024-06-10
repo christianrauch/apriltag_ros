@@ -43,6 +43,7 @@ find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(Threads REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS core calib3d)
 find_package(apriltag 3.2 REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 if(cv_bridge_VERSION VERSION_GREATER_EQUAL 3.3.0)
     add_compile_definitions(cv_bridge_HPP)
@@ -110,9 +111,11 @@ ament_target_dependencies(AprilTagNode
     tf2_ros
     image_transport
     cv_bridge
+    ament_index_cpp
 )
 target_link_libraries(AprilTagNode
     apriltag::apriltag
+    yaml-cpp::yaml-cpp
     tags
     pose_estimation
 )
@@ -126,6 +129,10 @@ ament_environment_hooks(${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY
 install(TARGETS AprilTagNode
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
+)
+
+install(DIRECTORY tag
+    DESTINATION share/${PROJECT_NAME}
 )
 
 install(DIRECTORY cfg

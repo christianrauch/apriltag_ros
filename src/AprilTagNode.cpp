@@ -7,6 +7,7 @@
 #else
 #include <cv_bridge/cv_bridge.h>
 #endif
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <image_transport/camera_subscriber.hpp>
 #include <image_transport/image_transport.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -18,6 +19,11 @@
 // apriltag
 #include "tag_functions.hpp"
 #include <apriltag.h>
+#include <filesystem>
+#include <yaml-cpp/yaml.h>
+
+
+namespace fs = std::filesystem;
 
 
 #define IF(N, V) \
@@ -144,6 +150,12 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         }
         for(size_t i = 0; i < ids.size(); i++) { tag_sizes[ids[i]] = sizes[i]; }
     }
+
+    // tag_family
+    const fs::path ros_pkg_share_path =
+        ament_index_cpp::get_package_share_directory("apriltag_ros");
+    const fs::path tag_config_path = ros_pkg_share_path / "tag" / (tag_family + ".yaml");
+    const YAML::Node tag_config = YAML::LoadFile(tag_config_path);
 
     if(tag_fun.count(tag_family)) {
         tf = tag_fun.at(tag_family).first();
