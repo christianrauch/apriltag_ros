@@ -14,6 +14,14 @@ homography(apriltag_detection_t* const detection, const std::array<double, 4>& i
     apriltag_pose_t pose;
     estimate_pose_for_tag_homography(&info, &pose);
 
+    // rotate frame such that z points in the opposite direction towards the camera
+    for(int i = 0; i < 3; i++) {
+        // swap x and y axes
+        std::swap(MATD_EL(pose.R, 0, i), MATD_EL(pose.R, 1, i));
+        // invert z axis
+        MATD_EL(pose.R, 2, i) *= -1;
+    }
+
     return tf2::toMsg<apriltag_pose_t, geometry_msgs::msg::Transform>(const_cast<const apriltag_pose_t&>(pose));
 }
 
