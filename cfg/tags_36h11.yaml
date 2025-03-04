@@ -14,6 +14,9 @@
             sharpening: 0.25    # sharpening of decoded images
             debug: False        # write additional debugging images to current working directory
 
+
+        pose_estimation_method: "pnp"   # method for estimating the tag pose
+
         # optional list of tags
         tag:
             ids: [9, 14]            # tag ID

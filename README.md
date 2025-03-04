@@ -44,6 +44,8 @@ apriltag:                 # node name
       sharpening: 0.25    # sharpening of decoded images
       debug: 0            # write additional debugging images to current working directory
 
+    pose_estimation_method: "pnp" # method for estimating the tag pose
+
     # (optional) list of tags
     # If defined, 'frames' and 'sizes' must have the same length as 'ids'.
     tag:
