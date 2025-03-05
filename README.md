@@ -1,6 +1,6 @@
-# AprilTag ROS2 Node
+# AprilTag ROS 2 Node
 
-This ROS2 node uses the AprilTag library to detect AprilTags in images and publish their pose, id and additional metadata.
+This ROS 2 node uses the AprilTag library to detect AprilTags in images and publish their pose, id and additional metadata.
 
 For more information on AprilTag, the paper and the reference implementation: https://april.eecs.umich.edu/software/apriltag.html
 
@@ -44,6 +44,8 @@ apriltag:                 # node name
       sharpening: 0.25    # sharpening of decoded images
       debug: 0            # write additional debugging images to current working directory
 
+    pose_estimation_method: "pnp" # method for estimating the tag pose
+
     # (optional) list of tags
     # If defined, 'frames' and 'sizes' must have the same length as 'ids'.
     tag:
@@ -81,7 +83,7 @@ apriltag_ros
   AprilTagNode
 ```
 
-This `AprilTagNode` component can be loaded with other nodes into a "container node" process where they used shared-memory communication to prevent unnecessary data copies. The example launch file [v4l2_36h11.launch.yml](launch/v4l2_36h11.launch.yml) loads the `AprilTagNode` component together with the `v4l2_camera::V4L2Camera` component from the [`v4l2_camera` package](https://gitlab.com/boldhearts/ros2_v4l2_camera) (`sudo apt install ros-$ROS_DISTRO-v4l2-camera`) into one container and enables `use_intra_process_comms` for both:
+This `AprilTagNode` component can be loaded with other nodes into a "container node" process where they used shared-memory communication to prevent unnecessary data copies. The example launch file [camera_36h11.launch.yml](launch/camera_36h11.launch.yml) loads the `AprilTagNode` component together with the `camera::CameraNode` component from the [`camera_ros` package](https://index.ros.org/p/camera_ros/) (`sudo apt install ros-$ROS_DISTRO-camera-ros`) into one container and enables `use_intra_process_comms` for both:
 ```sh
-ros2 launch apriltag_ros v4l2_36h11.launch.yml
+ros2 launch apriltag_ros camera_36h11.launch.yml
 ```

@@ -9,13 +9,13 @@ launch:
     name: apriltag_container
     namespace: ""
     composable_node:
-    - pkg: v4l2_camera
-      plugin: v4l2_camera::V4L2Camera
+    - pkg: camera_ros
+      plugin: camera::CameraNode
       name: camera
-      namespace: v4l2
+      namespace: camera
       param:
-      - name: video_device
-        value: /dev/video$(var device)
+      - name: camera
+        value: $(var device)
       extra_arg:
       - name: use_intra_process_comms
         value: "True"
@@ -23,10 +23,12 @@ launch:
     - pkg: image_proc
       plugin: image_proc::RectifyNode
       name: rectify
-      namespace: v4l2
+      namespace: camera
       remap:
       - from: image
-        to: image_raw
+        to: /camera/camera/image_raw
+      - from: camera_info
+        to: /camera/camera/camera_info
       extra_arg:
       - name: use_intra_process_comms
         value: "True"
@@ -37,9 +39,9 @@ launch:
       namespace: apriltag
       remap:
       - from: /apriltag/image_rect
-        to: /v4l2/image_rect
-      - from: /apriltag/camera_info
-        to: /v4l2/camera_info
+        to: /camera/image_rect
+      - from: /camera/camera_info
+        to: /camera/camera/camera_info
       param:
       - from: $(find-pkg-share apriltag_ros)/cfg/tags_36h11.yaml
       extra_arg:

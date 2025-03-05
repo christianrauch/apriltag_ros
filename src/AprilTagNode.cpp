@@ -117,7 +117,20 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     const auto sizes = declare_parameter("tag.sizes", std::vector<double>{}, descr("tag sizes per id", true));
 
     // get method for estimating tag pose
-    estimate_pose = pose_estimation_methods.at(declare_parameter("pose_estimation_method", "pnp", descr("pose estimation method: \"pnp\" (more accurate) or \"homography\" (faster)", true)));
+    const std::string& pose_estimation_method =
+        declare_parameter("pose_estimation_method", "pnp",
+                          descr("pose estimation method: \"pnp\" (more accurate) or \"homography\" (faster), "
+                                "set to \"\" (empty) to disable pose estimation",
+                                true));
+
+    if(!pose_estimation_method.empty()) {
+        if(pose_estimation_methods.count(pose_estimation_method)) {
+            estimate_pose = pose_estimation_methods.at(pose_estimation_method);
+        }
+        else {
+            RCLCPP_ERROR_STREAM(get_logger(), "Unknown pose estimation method '" << pose_estimation_method << "'.");
+        }
+    }
 
     // detector parameters in "detector" namespace
     declare_parameter("detector.threads", td->nthreads, descr("number of threads"));
@@ -165,7 +178,15 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
                             const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci)
 {
     // camera intrinsics for rectified images
-    const std::array<double, 4> intrinsics = {msg_ci->p.data()[0], msg_ci->p.data()[5], msg_ci->p.data()[2], msg_ci->p.data()[6]};
+    const std::array<double, 4> intrinsics = {msg_ci->p[0], msg_ci->p[5], msg_ci->p[2], msg_ci->p[6]};
+
+    // check for valid intrinsics
+    const bool calibrated = msg_ci->width && msg_ci->height &&
+                            intrinsics[0] && intrinsics[1] && intrinsics[2] && intrinsics[3];
+
+    if(estimate_pose != nullptr && !calibrated) {
+        RCLCPP_WARN_STREAM(get_logger(), "The camera is not calibrated! Set 'pose_estimation_method' to \"\" (empty) to disable pose estimation and this warning.");
+    }
 
     // convert to 8bit monochrome image
     const cv::Mat img_uint8 = cv_bridge::toCvShare(msg_img, "mono8")->image;
@@ -213,20 +234,21 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         msg_detections.detections.push_back(msg_detection);
 
         // 3D orientation and position
-        geometry_msgs::msg::TransformStamped tf;
-        tf.header = msg_img->header;
-        // set child frame name by generic tag name or configured tag name
-        tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name) + ":" + std::to_string(det->id);
-        const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
-        if(estimate_pose != nullptr) {
+        if(estimate_pose != nullptr && calibrated) {
+            geometry_msgs::msg::TransformStamped tf;
+            tf.header = msg_img->header;
+            // set child frame name by generic tag name or configured tag name
+            tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name) + ":" + std::to_string(det->id);
+            const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
             tf.transform = estimate_pose(det, intrinsics, size);
+            tfs.push_back(tf);
         }
-
-        tfs.push_back(tf);
     }
 
     pub_detections->publish(msg_detections);
-    tf_broadcaster.sendTransform(tfs);
+
+    if(estimate_pose != nullptr)
+        tf_broadcaster.sendTransform(tfs);
 
     apriltag_detections_destroy(detections);
 }
