@@ -70,7 +70,7 @@ target_link_libraries(conversion
     Eigen3::Eigen
     opencv_core
 )
-ament_target_dependencies(conversion
+target_link_libraries(conversion PUBLIC
     geometry_msgs
     tf2
 )
@@ -89,7 +89,7 @@ target_link_libraries(pose_estimation
     opencv_calib3d
     conversion
 )
-ament_target_dependencies(pose_estimation
+target_link_libraries(pose_estimation PUBLIC
     geometry_msgs
     tf2
 )
@@ -102,7 +102,7 @@ set_property(TARGET pose_estimation PROPERTY
 add_library(AprilTagNode SHARED
     src/AprilTagNode.cpp
 )
-ament_target_dependencies(AprilTagNode
+target_link_libraries(AprilTagNode PUBLIC
     rclcpp
     rclcpp_components
     sensor_msgs
