@@ -66,13 +66,12 @@ add_library(conversion STATIC
     src/conversion.cpp
 )
 target_link_libraries(conversion
+  PUBLIC
     apriltag::apriltag
     Eigen3::Eigen
     opencv_core
-)
-ament_target_dependencies(conversion
-    geometry_msgs
-    tf2
+    ${geometry_msgs_TARGETS}
+    tf2::tf2
 )
 set_property(TARGET conversion PROPERTY
     POSITION_INDEPENDENT_CODE ON
@@ -84,14 +83,13 @@ add_library(pose_estimation STATIC
     src/pose_estimation.cpp
 )
 target_link_libraries(pose_estimation
+  PUBLIC
     apriltag::apriltag
     Eigen3::Eigen
     opencv_calib3d
     conversion
-)
-ament_target_dependencies(pose_estimation
-    geometry_msgs
-    tf2
+    ${geometry_msgs_TARGETS}
+    tf2::tf2
 )
 set_property(TARGET pose_estimation PROPERTY
     POSITION_INDEPENDENT_CODE ON
@@ -102,19 +100,20 @@ set_property(TARGET pose_estimation PROPERTY
 add_library(AprilTagNode SHARED
     src/AprilTagNode.cpp
 )
-ament_target_dependencies(AprilTagNode
-    rclcpp
-    rclcpp_components
-    sensor_msgs
-    apriltag_msgs
-    tf2_ros
-    image_transport
-    cv_bridge
-)
 target_link_libraries(AprilTagNode
+  PUBLIC
     apriltag::apriltag
     tags
     pose_estimation
+    ${apriltag_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    cv_bridge::cv_bridge
+    image_transport::image_transport
+    rclcpp::rclcpp
+    rclcpp_components::component
+    rclcpp_components::component_manager
+    sensor_msgs::sensor_msgs_library
+    tf2_ros::tf2_ros
 )
 rclcpp_components_register_node(AprilTagNode
     PLUGIN "AprilTagNode"
