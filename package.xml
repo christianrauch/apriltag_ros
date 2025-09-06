@@ -20,7 +20,7 @@
   <depend>image_transport</depend>
   <depend>cv_bridge</depend>
 
-  <exec_depend>camera_ros</exec_depend>
+<!--  <exec_depend>camera_ros</exec_depend>-->
   <exec_depend condition="$ROS_DISTRO != 'humble'">image_proc</exec_depend>
   <exec_depend>image_transport_plugins</exec_depend>
 
