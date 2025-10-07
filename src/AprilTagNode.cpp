@@ -212,7 +212,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
 
     // Create a colored image for use in debug image
     cv::Mat img_color;
-    if (debug_image_pub) {
+    if(debug_image_pub) {
         cv::cvtColor(img_uint8, img_color, cv::COLOR_GRAY2BGR);
     }
 
@@ -243,12 +243,12 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         std::memcpy(msg_detection.homography.data(), det->H->data, sizeof(double) * 9);
         msg_detections.detections.push_back(msg_detection);
 
-        if (debug_image_pub){
+        if(debug_image_pub) {
             // Draw outline
             for(size_t j = 0; j < msg_detection.corners.size(); j++) {
                 cv::Point2f p1(msg_detection.corners[j].x, msg_detection.corners[j].y);
                 cv::Point2f p2(msg_detection.corners[(j + 1) % msg_detection.corners.size()].x,
-                            msg_detection.corners[(j + 1) % msg_detection.corners.size()].y);
+                               msg_detection.corners[(j + 1) % msg_detection.corners.size()].y);
                 // Change color for each index of i
                 cv::line(img_color, p1, p2, cv::Scalar(0, 255, 0), 3);
             }
@@ -259,7 +259,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
                 cv::Point2f(msg_detection.centre.x - 10, msg_detection.centre.y + 10),
                 cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 3);
         }
-         
+
         // 3D orientation and position
         if(estimate_pose != nullptr && calibrated) {
             geometry_msgs::msg::TransformStamped tf;
@@ -272,7 +272,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         }
     }
 
-    if (debug_image_pub){
+    if(debug_image_pub) {
         // Write cv mat image back into image message and publish
         sensor_msgs::msg::Image::SharedPtr img_msg = cv_bridge::CvImage(msg_img->header, "bgr8", img_color).toImageMsg();
         detections_image_pub->publish(*img_msg);
