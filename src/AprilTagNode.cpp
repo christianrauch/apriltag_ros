@@ -75,7 +75,7 @@ private:
     std::atomic<bool> profile;
     std::unordered_map<int, std::string> tag_frames;
     std::unordered_map<int, double> tag_sizes;
-    bool debug_image_pub;
+    bool debug_image_pub_enabled;
 
     std::function<void(apriltag_family_t*)> tf_destructor;
 
@@ -210,6 +210,9 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
 
     std::vector<geometry_msgs::msg::TransformStamped> tfs;
 
+    // Only publish debug image if enabled and at least one subscriber
+    const bool debug_image_pub = debug_image_pub_enabled && detections_image_pub->get_subscription_count() > 0;
+
     // Create a colored image for use in debug image
     cv::Mat img_color;
     if(debug_image_pub) {
@@ -304,7 +307,7 @@ AprilTagNode::onParameter(const std::vector<rclcpp::Parameter>& parameters)
         IF("detector.debug", td->debug)
         IF("max_hamming", max_hamming)
         IF("profile", profile)
-        IF("debug_image_pub", debug_image_pub)
+        IF("debug_image_pub", debug_image_pub_enabled)
     }
 
     mutex.unlock();
