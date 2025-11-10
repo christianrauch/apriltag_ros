@@ -4,6 +4,7 @@
         family: 36h11           # tag family name
         size: 0.173             # tag edge size in meter
         max_hamming: 0          # maximum allowed hamming distance (corrected bits)
+        qos_profile: default    # optional qos_profile, "sensor_data", "default", or "system_default"
 
         # see "apriltag.h" 'struct apriltag_detector' for more documentation on these optional parameters
         detector:
