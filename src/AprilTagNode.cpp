@@ -56,6 +56,12 @@ descr(const std::string& description, const bool& read_only = false)
     return descr;
 }
 
+const static std::unordered_map<std::string, rmw_qos_profile_t> qos_profiles{
+    {"default", rmw_qos_profile_default},
+    {"sensor_data", rmw_qos_profile_sensor_data},
+    {"system_default", rmw_qos_profile_system_default},
+};
+
 class AprilTagNode : public rclcpp::Node {
 public:
     AprilTagNode(const rclcpp::NodeOptions& options);
@@ -103,7 +109,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         this->get_node_topics_interface()->resolve_topic_name("image_rect"),
         std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2),
         declare_parameter("image_transport", "raw", descr({}, true)),
-        rmw_qos_profile_sensor_data)),
+        qos_profiles.at(declare_parameter("qos_profile", "default", descr("qos profile to use. 'default', 'sensor_data' or 'system_default'", true))))),
     pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
     tf_broadcaster(this)
 {
