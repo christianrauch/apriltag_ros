@@ -68,11 +68,7 @@ pnp_bundle(std::vector<apriltag_detection_t*> detections,
         double s = tagsizes[id] / 2;
         std::vector<double> tf_vec = transforms[detection->id];
 
-        Eigen::AngleAxisd roll(tf_vec[3], Eigen::Vector3d::UnitX());
-        Eigen::AngleAxisd pitch(tf_vec[4], Eigen::Vector3d::UnitY());
-        Eigen::AngleAxisd yaw(tf_vec[5], Eigen::Vector3d::UnitZ());
-
-        Eigen::Quaternion<double> quat = roll * pitch * yaw;
+        Eigen::Quaternion<double> quat(tf_vec[3], tf_vec[4], tf_vec[5], tf_vec[6]); // qw, qx, qy, qz
 
         Eigen::Matrix3d rot_mat = quat.matrix();
         cv::Matx44d tf_mat(rot_mat(0, 0), rot_mat(0, 1), rot_mat(0, 2), tf_vec[0],
