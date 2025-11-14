@@ -54,6 +54,55 @@ pnp(apriltag_detection_t* const detection, const std::array<double, 4>& intr, do
     return tf2::toMsg<std::pair<cv::Mat_<double>, cv::Mat_<double>>, geometry_msgs::msg::Transform>(std::make_pair(tvec, rvec));
 }
 
+geometry_msgs::msg::Transform
+pnp_bundle(std::vector<apriltag_detection_t*> detections,
+           const std::array<double, 4>& intr,
+           std::unordered_map<int, double> tagsizes,
+           std::unordered_map<int, std::vector<double>> transforms)
+{
+    std::vector<cv::Point3d> objectPoints;
+    std::vector<cv::Point2d> imagePoints;
+
+    for(auto& detection : detections) {
+        int id = detection->id;
+        double s = tagsizes[id] / 2;
+        std::vector<double> tf_vec = transforms[detection->id];
+
+        Eigen::AngleAxisd roll(tf_vec[3], Eigen::Vector3d::UnitX());
+        Eigen::AngleAxisd pitch(tf_vec[4], Eigen::Vector3d::UnitY());
+        Eigen::AngleAxisd yaw(tf_vec[5], Eigen::Vector3d::UnitZ());
+
+        Eigen::Quaternion<double> quat = roll * pitch * yaw;
+
+        Eigen::Matrix3d rot_mat = quat.matrix();
+        cv::Matx44d tf_mat(rot_mat(0, 0), rot_mat(0, 1), rot_mat(0, 2), tf_vec[0],
+                           rot_mat(1, 0), rot_mat(1, 1), rot_mat(1, 2), tf_vec[1],
+                           rot_mat(2, 0), rot_mat(2, 1), rot_mat(2, 2), tf_vec[2],
+                           0, 0, 0, 1);
+
+        objectPoints.push_back(tf_mat.get_minor<3, 4>(0, 0) * cv::Vec4d(-s, -s, 0, 1));
+        objectPoints.push_back(tf_mat.get_minor<3, 4>(0, 0) * cv::Vec4d(+s, -s, 0, 1));
+        objectPoints.push_back(tf_mat.get_minor<3, 4>(0, 0) * cv::Vec4d(+s, +s, 0, 1));
+        objectPoints.push_back(tf_mat.get_minor<3, 4>(0, 0) * cv::Vec4d(-s, +s, 0, 1));
+
+        // Add image points
+        for(int i = 0; i < 4; i++) {
+            imagePoints.push_back({detection->p[i][0], detection->p[i][1]});
+        }
+    }
+
+    cv::Matx33d cameraMatrix;
+    cameraMatrix(0, 0) = intr[0];// fx
+    cameraMatrix(1, 1) = intr[1];// fy
+    cameraMatrix(0, 2) = intr[2];// cx
+    cameraMatrix(1, 2) = intr[3];// cy
+
+    cv::Mat rvec, tvec;
+    cv::solvePnP(objectPoints, imagePoints, cameraMatrix, {}, rvec, tvec);
+
+    return tf2::toMsg<std::pair<cv::Mat_<double>, cv::Mat_<double>>, geometry_msgs::msg::Transform>(std::make_pair(tvec, rvec));
+}
+
 const std::unordered_map<std::string, pose_estimation_f> pose_estimation_methods{
     {"homography", homography},
     {"pnp", pnp},
