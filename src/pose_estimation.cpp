@@ -4,7 +4,7 @@
 #include <apriltag/common/homography.h>
 #include <opencv2/calib3d.hpp>
 #include <tf2/convert.h>
-#include <tf2_eigen/tf2_eigen.hpp>
+
 
 geometry_msgs::msg::Transform
 homography(apriltag_detection_t* const detection, const std::array<double, 4>& intr, double tagsize)
@@ -65,18 +65,25 @@ pnp_bundle(std::vector<apriltag_detection_t*> detections,
 
     for(auto& detection : detections) {
         int id = detection->id;
-        std::vector<cv::Point3d> untransformed_object_points = {cv::Point3d(-(tagsizes[id] / 2), -(tagsizes[id] / 2), 0),
-                                                                cv::Point3d(+(tagsizes[id] / 2), -(tagsizes[id] / 2), 0),
-                                                                cv::Point3d(+(tagsizes[id] / 2), +(tagsizes[id] / 2), 0),
-                                                                cv::Point3d(-(tagsizes[id] / 2), +(tagsizes[id] / 2), 0)};
+        double s = tagsizes[id] / 2;
+        std::vector<double> tf_vec = transforms[detection->id];
 
-        std::vector<double> transformation_vec = transforms[detection->id];
-        // Add transformed object points to objectPoints
-        for(cv::Point3d& untransformed_obj_pt : untransformed_object_points) {
-            cv::Point3d transformed_obj_pt = apply_transform_to_point3d(
-                untransformed_obj_pt, transformation_vec);
-            objectPoints.push_back(transformed_obj_pt);
-        }
+        Eigen::AngleAxisd roll(tf_vec[3], Eigen::Vector3d::UnitX());
+        Eigen::AngleAxisd pitch(tf_vec[4], Eigen::Vector3d::UnitY());
+        Eigen::AngleAxisd yaw(tf_vec[5], Eigen::Vector3d::UnitZ());
+
+        Eigen::Quaternion<double> quat = roll * pitch * yaw;
+
+        Eigen::Matrix3d rot_mat = quat.matrix();
+        cv::Matx44d tf_mat(rot_mat(0, 0), rot_mat(0, 1), rot_mat(0, 2), tf_vec[0],
+                           rot_mat(1, 0), rot_mat(1, 1), rot_mat(1, 2), tf_vec[1],
+                           rot_mat(2, 0), rot_mat(2, 1), rot_mat(2, 2), tf_vec[2],
+                           0, 0, 0, 1);
+
+        objectPoints.push_back(tf_mat.get_minor<3, 4>(0, 0) * cv::Vec4d(-s, -s, 0, 1));
+        objectPoints.push_back(tf_mat.get_minor<3, 4>(0, 0) * cv::Vec4d(+s, -s, 0, 1));
+        objectPoints.push_back(tf_mat.get_minor<3, 4>(0, 0) * cv::Vec4d(+s, +s, 0, 1));
+        objectPoints.push_back(tf_mat.get_minor<3, 4>(0, 0) * cv::Vec4d(-s, +s, 0, 1));
 
         // Add image points
         for(int i = 0; i < 4; i++) {
@@ -94,36 +101,6 @@ pnp_bundle(std::vector<apriltag_detection_t*> detections,
     cv::solvePnP(objectPoints, imagePoints, cameraMatrix, {}, rvec, tvec);
 
     return tf2::toMsg<std::pair<cv::Mat_<double>, cv::Mat_<double>>, geometry_msgs::msg::Transform>(std::make_pair(tvec, rvec));
-}
-
-cv::Point3d apply_transform_to_point3d(cv::Point3d point, std::vector<double> tf_vec)
-{
-    Eigen::Vector3d point_vec(point.x, point.y, point.z);
-
-    // Apply rotation first
-    tf2::Quaternion quat;
-    quat.setRPY(tf_vec[3], tf_vec[4], tf_vec[5]);
-    Eigen::Vector3d rotated_point_vec;
-    geometry_msgs::msg::TransformStamped rotation;
-    rotation.transform.rotation.x = quat.x();
-    rotation.transform.rotation.y = quat.y();
-    rotation.transform.rotation.z = quat.z();
-    rotation.transform.rotation.w = quat.w();
-    tf2::doTransform(point_vec, rotated_point_vec, rotation);
-
-    // Then apply a translation
-    Eigen::Vector3d translated_pt_vec;
-    geometry_msgs::msg::TransformStamped translation;
-    translation.transform.translation.x = tf_vec[0];
-    translation.transform.translation.y = tf_vec[1];
-    translation.transform.translation.z = tf_vec[2];
-    tf2::doTransform(rotated_point_vec, translated_pt_vec, translation);
-
-    cv::Point3d transformed_point;
-    transformed_point.x = translated_pt_vec[0];
-    transformed_point.y = translated_pt_vec[1];
-    transformed_point.z = translated_pt_vec[2];
-    return transformed_point;
 }
 
 const std::unordered_map<std::string, pose_estimation_f> pose_estimation_methods{
