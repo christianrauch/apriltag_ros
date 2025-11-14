@@ -23,3 +23,20 @@
             ids: [9, 14]            # tag ID
             frames: [base, object]  # optional frame name
             sizes: [0.162, 0.162]   # optional tag-specific edge size
+
+        # optional list of tag bundles
+        tag_bundles:
+            bundle_names: ['bundle1', 'bundle2']
+            bundle1:
+                ids: [0, 1] # tag IDs in bundle
+                "0":
+                    size: 0.1
+                    transform: [-0.25, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0] # [x, y, z, qw, qx, qy, qz]
+                "1":
+                    size: 0.1
+                    transform: [0.25, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0] # [x, y, z, qw, qx, qy, qz]
+            bundle2:
+                ids: [0] # tag IDs in bundle
+                "0":
+                    size: 0.1
+                    transform: [-0.25, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0] # [x, y, z, qw, qx, qy, qz]
