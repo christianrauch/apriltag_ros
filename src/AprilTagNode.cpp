@@ -61,6 +61,34 @@ const static std::unordered_map<std::string, rmw_qos_profile_t> qos_profiles{
     {"system_default", rmw_qos_profile_system_default},
 };
 
+std::vector<double> convert_string_to_vector_double(std::string const& s, std::string& error)
+{
+    std::vector<double> result;
+    std::istringstream iss(s);
+    std::string value_str;
+    double value;
+    while(std::getline(iss, value_str, ' ')) {
+        try {
+            value = std::stod(value_str);
+        }
+        catch(const std::invalid_argument&) {
+            error = "Invalid value for key \"" + value_str + "\"";
+            return result;
+        }
+        result.push_back(value);
+    }
+    error = "";
+    return result;
+}
+
+struct TagBundle
+{
+    std::vector<int64_t> ids;
+    std::unordered_map<int, double> id_to_size;
+    std::unordered_map<int, std::vector<double>> id_to_tf;
+    std::string frame_id;
+};
+
 class AprilTagNode : public rclcpp::Node {
 public:
     AprilTagNode(const rclcpp::NodeOptions& options);
@@ -78,6 +106,7 @@ private:
     double tag_edge_size;
     std::atomic<int> max_hamming;
     std::atomic<bool> profile;
+    std::vector<TagBundle> all_tag_bundles;
     std::unordered_map<int, std::string> tag_frames;
     std::unordered_map<int, double> tag_sizes;
 
@@ -138,6 +167,8 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     const auto frames = declare_parameter("tag.frames", std::vector<std::string>{}, descr("tag frame names per id", true));
     const auto sizes = declare_parameter("tag.sizes", std::vector<double>{}, descr("tag sizes per id", true));
 
+    // get list of tag bundles names
+    const auto bundle_names = declare_parameter("tag_bundles.bundle_names", std::vector<std::string>{}, descr("tag bundle names", true));
     // get method for estimating tag pose
     const std::string& pose_estimation_method =
         declare_parameter("pose_estimation_method", "pnp",
@@ -164,6 +195,46 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
     declare_parameter("max_hamming", 0, descr("reject detections with more corrected bits than allowed"));
     declare_parameter("profile", false, descr("print profiling information to stdout"));
+
+    for(auto& bundle_name : bundle_names) {
+
+        TagBundle bundle;
+
+        bundle.frame_id = bundle_name;
+        bundle.ids = declare_parameter("tag_bundles." + bundle_name + ".ids", std::vector<int64_t>{}, descr("bundle ids", true));
+        const auto sizes = declare_parameter("tag_bundles." + bundle_name + ".sizes", std::vector<double>{}, descr("bundle sizes", true));
+        auto transforms = declare_parameter("tag_bundles." + bundle_name + ".transforms", std::vector<std::string>{}, descr("bundle transforms", true));
+
+        // if tag bundles are defined, ensure they're correctly defined
+        // ensure length of ids is same as sizes
+        if(bundle.ids.size() != sizes.size()) {
+            throw std::runtime_error("Number of tag_bundles ids (" + std::to_string(bundle.ids.size()) + ") and sizes (" + std::to_string(bundle.id_to_size.size()) + ") mismatch!");
+        }
+        // map bundle sizes to their respective bundle ids
+        for(size_t i = 0; i < sizes.size(); i++) { bundle.id_to_size[bundle.ids[i]] = sizes[i]; }
+
+        // ensure length of bundle.ids is same as transforms
+        if(bundle.ids.size() != transforms.size()) {
+            throw std::runtime_error("Number of tag_bundles ids (" + std::to_string(bundle.ids.size()) + ") and transforms (" + std::to_string(bundle.id_to_tf.size()) + ") mismatch!");
+        }
+
+        // attempt to convert each transform from string to vector
+        std::string error;
+        for(size_t i = 0; i < transforms.size(); i++) {
+            std::vector<double> transform = convert_string_to_vector_double(transforms[i], error);
+            // check if there was an error in converting std::string to std::vector<double>
+            if(error != "") {
+                throw std::runtime_error("Error in tag_bundles.transforms parameter: " + error);
+            }
+            // check that length of each transform is 6 {x, y, z, roll, pitch, yaw}
+            if(transform.size() != 6) {
+                throw std::runtime_error("Length of transforms array for bundle id " + std::to_string(bundle.ids[i]) + " is not 6.");
+            }
+            // map bundle transforms (std::vector<double>) to their respective bundle ids
+            bundle.id_to_tf[bundle.ids[i]] = transform;
+        }
+        all_tag_bundles.push_back(bundle);
+    }
 
     if(!frames.empty()) {
         if(ids.size() != frames.size()) {
@@ -227,6 +298,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     msg_detections.header = msg_img->header;
 
     std::vector<geometry_msgs::msg::TransformStamped> tfs;
+    std::unordered_map<std::string, std::vector<apriltag_detection_t*>> bundle_detections;
 
     for(int i = 0; i < zarray_size(detections); i++) {
         apriltag_detection_t* det;
@@ -264,6 +336,24 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
             const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
             tf.transform = estimate_pose(det, intrinsics, size);
             tfs.push_back(tf);
+        }
+
+        // For all detections, extract relevant ones to bundle_detections
+        for(auto& bundle : all_tag_bundles) {
+            bool id_in_bundle = (std::find(bundle.ids.begin(), bundle.ids.end(), det->id) != bundle.ids.end());
+            if(id_in_bundle) {
+                bundle_detections[bundle.frame_id].push_back(det);
+            }
+        }
+    }
+
+    for(auto& bundle : all_tag_bundles) {
+        geometry_msgs::msg::TransformStamped bundle_transform_stamped;
+        if(bundle_detections.find(bundle.frame_id) != bundle_detections.end()) {
+            bundle_transform_stamped.header = msg_img->header;
+            bundle_transform_stamped.child_frame_id = bundle.frame_id;
+            bundle_transform_stamped.transform = pnp_bundle(bundle_detections[bundle.frame_id], intrinsics, bundle.id_to_size, bundle.id_to_tf);
+            tf_broadcaster.sendTransform(bundle_transform_stamped);
         }
     }
 
