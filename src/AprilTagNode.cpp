@@ -81,11 +81,13 @@ private:
     std::atomic<bool> profile;
     std::unordered_map<int, std::string> tag_frames;
     std::unordered_map<int, double> tag_sizes;
+    bool debug_image_pub_enabled;
 
     std::function<void(apriltag_family_t*)> tf_destructor;
 
     const image_transport::CameraSubscriber sub_cam;
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
+    const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr detections_image_pub;
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
     pose_estimation_f estimate_pose = nullptr;
@@ -111,6 +113,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         declare_parameter("image_transport", "raw", descr({}, true)),
         qos_profiles.at(declare_parameter("qos_profile", "default", descr("qos profile to use. 'default', 'sensor_data' or 'system_default'", true))))),
     pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
+    detections_image_pub(create_publisher<sensor_msgs::msg::Image>("detections_image", rclcpp::QoS(1))),
     tf_broadcaster(this)
 {
     // read-only parameters
@@ -148,6 +151,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
     declare_parameter("max_hamming", 0, descr("reject detections with more corrected bits than allowed"));
     declare_parameter("profile", false, descr("print profiling information to stdout"));
+    declare_parameter("debug_image_pub", false, descr("Publish debug image showing detection results"));
 
     if(!frames.empty()) {
         if(ids.size() != frames.size()) {
@@ -212,6 +216,15 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
 
     std::vector<geometry_msgs::msg::TransformStamped> tfs;
 
+    // Only publish debug image if enabled and at least one subscriber
+    const bool debug_image_pub = debug_image_pub_enabled && detections_image_pub->get_subscription_count() > 0;
+
+    // Create a colored image for use in debug image
+    cv::Mat img_color;
+    if(debug_image_pub) {
+        cv::cvtColor(img_uint8, img_color, cv::COLOR_GRAY2BGR);
+    }
+
     for(int i = 0; i < zarray_size(detections); i++) {
         apriltag_detection_t* det;
         zarray_get(detections, i, &det);
@@ -239,6 +252,23 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         std::memcpy(msg_detection.homography.data(), det->H->data, sizeof(double) * 9);
         msg_detections.detections.push_back(msg_detection);
 
+        if(debug_image_pub) {
+            // Draw outline
+            for(size_t j = 0; j < msg_detection.corners.size(); j++) {
+                cv::Point2f p1(msg_detection.corners[j].x, msg_detection.corners[j].y);
+                cv::Point2f p2(msg_detection.corners[(j + 1) % msg_detection.corners.size()].x,
+                               msg_detection.corners[(j + 1) % msg_detection.corners.size()].y);
+                // Change color for each index of i
+                cv::line(img_color, p1, p2, cv::Scalar(0, 255, 0), 3);
+            }
+
+            // Write tag ID at the center
+            cv::putText(
+                img_color, std::to_string(msg_detection.id),
+                cv::Point2f(msg_detection.centre.x - 10, msg_detection.centre.y + 10),
+                cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255), 3);
+        }
+
         // 3D orientation and position
         if(estimate_pose != nullptr && calibrated) {
             geometry_msgs::msg::TransformStamped tf;
@@ -249,6 +279,12 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
             tf.transform = estimate_pose(det, intrinsics, size);
             tfs.push_back(tf);
         }
+    }
+
+    if(debug_image_pub) {
+        // Write cv mat image back into image message and publish
+        sensor_msgs::msg::Image::SharedPtr img_msg = cv_bridge::CvImage(msg_img->header, "bgr8", img_color).toImageMsg();
+        detections_image_pub->publish(*img_msg);
     }
 
     pub_detections->publish(msg_detections);
@@ -277,6 +313,7 @@ AprilTagNode::onParameter(const std::vector<rclcpp::Parameter>& parameters)
         IF("detector.debug", td->debug)
         IF("max_hamming", max_hamming)
         IF("profile", profile)
+        IF("debug_image_pub", debug_image_pub_enabled)
     }
 
     mutex.unlock();

@@ -15,6 +15,7 @@ The node subscribes via a `image_transport::CameraSubscriber` to rectified image
 ### Publisher:
 - `/tf` (type: `tf2_msgs/msg/TFMessage`)
 - `detections` (type: `apriltag_msgs/msg/AprilTagDetectionArray`)
+- `detections_image` (type: `sensor_msgs/msg/Image`) 
 
 The camera intrinsics `P` in `CameraInfo` are used to compute the marker tag pose `T` from the homography `H`. The image and the camera intrinsics need to have the same timestamp.
 
@@ -46,6 +47,8 @@ apriltag:                 # node name
 
     pose_estimation_method: "pnp" # method for estimating the tag pose
 
+    debug_image_pub: false  # Publish debug image showing detection results
+
     # (optional) list of tags
     # If defined, 'frames' and 'sizes' must have the same length as 'ids'.
     tag:
@@ -57,6 +60,8 @@ apriltag:                 # node name
 The `family` (string) defines the tag family for the detector and must be one of `16h5`, `25h9`, `36h11`, `Circle21h7`, `Circle49h12`, `Custom48h12`, `Standard41h12`, `Standard52h13`. `size` (float) is the tag edge size in meters, assuming square markers.
 
 Instead of publishing all tag poses, the list `tag.ids` can be used to only publish selected tag IDs. Each tag can have an associated child frame name in `tag.frames` and a tag specific size in `tag.sizes`. These lists must either have the same length as `tag.ids` or may be empty. In this case, a default frame name of the form `tag<family>:<id>` and the default tag edge size `size` will be used.
+
+To visualize the april tags overlaid on the original input image, set `debug_image_pub` to true. This is disabled by default.
 
 The remaining parameters are set to the their default values from the library. See `apriltag.h` for a more detailed description of their function.
 

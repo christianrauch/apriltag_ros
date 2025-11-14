@@ -18,6 +18,8 @@
 
         pose_estimation_method: "pnp"   # method for estimating the tag pose
 
+        debug_image_pub: false  # Publish debug image showing detection results
+
         # optional list of tags
         tag:
             ids: [9, 14]            # tag ID
