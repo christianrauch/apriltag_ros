@@ -28,13 +28,14 @@
             bundle_names: ['bundle1', 'bundle2']
             bundle1:
                 ids: [0, 1] # tag IDs in bundle
-                sizes: [0.1, 0.1] # corresponding tag sizes
-                transforms: # corresponding transforms in the form "[x, y, z, roll, pitch, yaw]"
-                - "-0.25 0.0 0.0 0.0 0.0 0.0"
-                - "0.25 0.0 0.0 0.0 0.0 0.0"
+                0:
+                    size: 0.1
+                    transform: [-0.25, 0.0, 0.0, 0.0, 0.0, 0.0] 
+                1:
+                    size: 0.1
+                    transform: [0.25, 0.0, 0.0, 0.0, 0.0, 0.0] 
             bundle2:
                 ids: [0] # tag IDs in bundle
-                sizes: [0.1] # corresponding tag sizes
-                transforms: # corresponding transforms in the form "[x, y, z, roll, pitch, yaw]"
-                - "+0.25 0.0 0.0 0.0 0.0 0.0"
-
+                0:
+                    size: 0.1
+                    transform: [0.25, 0.0, 0.0, 0.0, 0.0, 0.0] 

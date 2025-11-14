@@ -61,26 +61,6 @@ const static std::unordered_map<std::string, rmw_qos_profile_t> qos_profiles{
     {"system_default", rmw_qos_profile_system_default},
 };
 
-std::vector<double> convert_string_to_vector_double(std::string const& s, std::string& error)
-{
-    std::vector<double> result;
-    std::istringstream iss(s);
-    std::string value_str;
-    double value;
-    while(std::getline(iss, value_str, ' ')) {
-        try {
-            value = std::stod(value_str);
-        }
-        catch(const std::invalid_argument&) {
-            error = "Invalid value for key \"" + value_str + "\"";
-            return result;
-        }
-        result.push_back(value);
-    }
-    error = "";
-    return result;
-}
-
 struct TagBundle
 {
     std::vector<int64_t> ids;
@@ -202,36 +182,11 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
         bundle.frame_id = bundle_name;
         bundle.ids = declare_parameter("tag_bundles." + bundle_name + ".ids", std::vector<int64_t>{}, descr("bundle ids", true));
-        const auto sizes = declare_parameter("tag_bundles." + bundle_name + ".sizes", std::vector<double>{}, descr("bundle sizes", true));
-        auto transforms = declare_parameter("tag_bundles." + bundle_name + ".transforms", std::vector<std::string>{}, descr("bundle transforms", true));
 
-        // if tag bundles are defined, ensure they're correctly defined
-        // ensure length of ids is same as sizes
-        if(bundle.ids.size() != sizes.size()) {
-            throw std::runtime_error("Number of tag_bundles ids (" + std::to_string(bundle.ids.size()) + ") and sizes (" + std::to_string(bundle.id_to_size.size()) + ") mismatch!");
-        }
-        // map bundle sizes to their respective bundle ids
-        for(size_t i = 0; i < sizes.size(); i++) { bundle.id_to_size[bundle.ids[i]] = sizes[i]; }
-
-        // ensure length of bundle.ids is same as transforms
-        if(bundle.ids.size() != transforms.size()) {
-            throw std::runtime_error("Number of tag_bundles ids (" + std::to_string(bundle.ids.size()) + ") and transforms (" + std::to_string(bundle.id_to_tf.size()) + ") mismatch!");
-        }
-
-        // attempt to convert each transform from string to vector
-        std::string error;
-        for(size_t i = 0; i < transforms.size(); i++) {
-            std::vector<double> transform = convert_string_to_vector_double(transforms[i], error);
-            // check if there was an error in converting std::string to std::vector<double>
-            if(error != "") {
-                throw std::runtime_error("Error in tag_bundles.transforms parameter: " + error);
-            }
-            // check that length of each transform is 6 {x, y, z, roll, pitch, yaw}
-            if(transform.size() != 6) {
-                throw std::runtime_error("Length of transforms array for bundle id " + std::to_string(bundle.ids[i]) + " is not 6.");
-            }
-            // map bundle transforms (std::vector<double>) to their respective bundle ids
-            bundle.id_to_tf[bundle.ids[i]] = transform;
+        for(auto& id : bundle.ids) {
+            const std::string prefix = "tag_bundles." + bundle_name + "." + std::to_string(id);
+            bundle.id_to_size[id] = declare_parameter(prefix + ".size", 1.0, descr("bundle size", true));
+            bundle.id_to_tf[id] = declare_parameter(prefix + ".transform", std::vector<double>{}, descr("bundle transform", true));
         }
         all_tag_bundles.push_back(bundle);
     }
@@ -309,11 +264,20 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
                      i, det->family->nbits, det->family->h, det->id,
                      det->hamming, det->decision_margin);
 
-        // ignore untracked tags
-        if(!tag_frames.empty() && !tag_frames.count(det->id)) { continue; }
-
         // reject detections with more corrected bits than allowed
         if(det->hamming > max_hamming) { continue; }
+
+        // For all detections, extract relevant ones to bundle_detections
+        for(auto& bundle : all_tag_bundles) {
+            bool id_in_bundle = (std::find(bundle.ids.begin(), bundle.ids.end(), det->id) != bundle.ids.end());
+            if(id_in_bundle) {
+                bundle_detections[bundle.frame_id].push_back(det);
+                // RCLCPP_INFO(get_logger(), "tag of id %i found", det->id);
+            }
+        }
+
+        // ignore untracked tags
+        if(!tag_frames.empty() && !tag_frames.count(det->id)) { continue; }
 
         // detection
         apriltag_msgs::msg::AprilTagDetection msg_detection;
@@ -336,14 +300,6 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
             const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
             tf.transform = estimate_pose(det, intrinsics, size);
             tfs.push_back(tf);
-        }
-
-        // For all detections, extract relevant ones to bundle_detections
-        for(auto& bundle : all_tag_bundles) {
-            bool id_in_bundle = (std::find(bundle.ids.begin(), bundle.ids.end(), det->id) != bundle.ids.end());
-            if(id_in_bundle) {
-                bundle_detections[bundle.frame_id].push_back(det);
-            }
         }
     }
 
