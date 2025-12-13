@@ -48,6 +48,14 @@ if(cv_bridge_VERSION VERSION_GREATER_EQUAL 3.3.0)
     add_compile_definitions(cv_bridge_HPP)
 endif()
 
+if(image_transport_VERSION VERSION_GREATER_EQUAL 6.3)
+    add_compile_definitions(image_transport_QoS)
+endif()
+
+if(image_transport_VERSION VERSION_GREATER_EQUAL 6.4)
+    add_compile_definitions(image_transport_NODE_INTERFACE)
+endif()
+
 
 # database of tag functions
 add_library(tags STATIC
