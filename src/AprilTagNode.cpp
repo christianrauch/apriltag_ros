@@ -121,7 +121,13 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 #endif
     },
     pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
-    tf_broadcaster(this)
+    tf_broadcaster(
+#ifdef tf2_ros_NODE_INTERFACE
+        tf2_ros::TransformBroadcaster::RequiredInterfaces { *this }
+#else
+        this
+#endif
+    )
 {
     // read-only parameters
     const std::string tag_family = declare_parameter("family", "36h11", descr("tag family", true));
