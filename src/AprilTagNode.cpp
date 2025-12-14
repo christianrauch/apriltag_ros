@@ -8,12 +8,11 @@
 #include <cv_bridge/cv_bridge.h>
 #endif
 #include <image_transport/camera_subscriber.hpp>
-#include <image_transport/image_transport.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_ros/transform_broadcaster.hpp>
 
 // apriltag
 #include "tag_functions.hpp"
@@ -104,14 +103,31 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     cb_parameter(add_on_set_parameters_callback(std::bind(&AprilTagNode::onParameter, this, std::placeholders::_1))),
     td(apriltag_detector_create()),
     // topics
-    sub_cam(image_transport::create_camera_subscription(
+    sub_cam{
+#ifdef image_transport_NODE_INTERFACE
+        image_transport::RequiredInterfaces{*this},
+#else
         this,
+#endif
         this->get_node_topics_interface()->resolve_topic_name("image_rect"),
         std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2),
         declare_parameter("image_transport", "raw", descr({}, true)),
-        qos_profiles.at(declare_parameter("qos_profile", "default", descr("qos profile to use. 'default', 'sensor_data' or 'system_default'", true))))),
+#ifdef image_transport_QoS
+        rclcpp::QoS{rclcpp::QoSInitialization::from_rmw(
+#endif
+            qos_profiles.at(declare_parameter("qos_profile", "default", descr("qos profile to use. 'default', 'sensor_data' or 'system_default'", true)))
+#ifdef image_transport_QoS
+                )}
+#endif
+    },
     pub_detections(create_publisher<apriltag_msgs::msg::AprilTagDetectionArray>("detections", rclcpp::QoS(1))),
-    tf_broadcaster(this)
+    tf_broadcaster(
+#ifdef tf2_ros_NODE_INTERFACE
+        tf2_ros::TransformBroadcaster::RequiredInterfaces { *this }
+#else
+        this
+#endif
+    )
 {
     // read-only parameters
     const std::string tag_family = declare_parameter("family", "36h11", descr("tag family", true));
