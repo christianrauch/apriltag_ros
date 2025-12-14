@@ -61,6 +61,14 @@ const static std::unordered_map<std::string, rmw_qos_profile_t> qos_profiles{
     {"system_default", rmw_qos_profile_system_default},
 };
 
+struct TagBundle
+{
+    std::vector<int64_t> ids;
+    std::unordered_map<int, double> id_to_size;
+    std::unordered_map<int, std::vector<double>> id_to_tf;
+    std::string frame_id;
+};
+
 class AprilTagNode : public rclcpp::Node {
 public:
     AprilTagNode(const rclcpp::NodeOptions& options);
@@ -78,6 +86,8 @@ private:
     double tag_edge_size;
     std::atomic<int> max_hamming;
     std::atomic<bool> profile;
+    std::vector<TagBundle> all_tag_bundles;
+    std::set<int64_t> tags_in_bundles;
     std::unordered_map<int, std::string> tag_frames;
     std::unordered_map<int, double> tag_sizes;
 
@@ -138,6 +148,8 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     const auto frames = declare_parameter("tag.frames", std::vector<std::string>{}, descr("tag frame names per id", true));
     const auto sizes = declare_parameter("tag.sizes", std::vector<double>{}, descr("tag sizes per id", true));
 
+    // get list of tag bundles names
+    const auto bundle_names = declare_parameter("tag_bundles.bundle_names", std::vector<std::string>{}, descr("tag bundle names", true));
     // get method for estimating tag pose
     const std::string& pose_estimation_method =
         declare_parameter("pose_estimation_method", "pnp",
@@ -164,6 +176,21 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
     declare_parameter("max_hamming", 0, descr("reject detections with more corrected bits than allowed"));
     declare_parameter("profile", false, descr("print profiling information to stdout"));
+
+    for(const std::string& bundle_name : bundle_names) {
+        TagBundle bundle;
+
+        bundle.frame_id = bundle_name;
+        bundle.ids = declare_parameter("tag_bundles." + bundle_name + ".ids", std::vector<int64_t>{}, descr("bundle ids", true));
+
+        for(const int64_t& id : bundle.ids) {
+            tags_in_bundles.insert(id);
+            const std::string prefix = "tag_bundles." + bundle_name + "." + std::to_string(id);
+            bundle.id_to_size[id] = declare_parameter(prefix + ".size", 1.0, descr("bundle size", true));
+            bundle.id_to_tf[id] = declare_parameter(prefix + ".transform", std::vector<double>{}, descr("bundle transform", true));
+        }
+        all_tag_bundles.push_back(bundle);
+    }
 
     if(!frames.empty()) {
         if(ids.size() != frames.size()) {
@@ -227,6 +254,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     msg_detections.header = msg_img->header;
 
     std::vector<geometry_msgs::msg::TransformStamped> tfs;
+    std::unordered_map<std::string, std::vector<apriltag_detection_t*>> bundle_detections;
 
     for(int i = 0; i < zarray_size(detections); i++) {
         apriltag_detection_t* det;
@@ -237,11 +265,19 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
                      i, det->family->nbits, det->family->h, det->id,
                      det->hamming, det->decision_margin);
 
-        // ignore untracked tags
-        if(!tag_frames.empty() && !tag_frames.count(det->id)) { continue; }
-
         // reject detections with more corrected bits than allowed
         if(det->hamming > max_hamming) { continue; }
+
+        // For all detections, extract relevant ones to bundle_detections
+        for(const TagBundle& bundle : all_tag_bundles) {
+            bool id_in_bundle = (std::find(bundle.ids.begin(), bundle.ids.end(), det->id) != bundle.ids.end());
+            if(id_in_bundle) {
+                bundle_detections[bundle.frame_id].push_back(det);
+            }
+        }
+
+        // ignore untracked tags
+        if(!tag_frames.empty() && !tag_frames.count(det->id)) { continue; }
 
         // detection
         apriltag_msgs::msg::AprilTagDetection msg_detection;
@@ -259,6 +295,8 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         if(estimate_pose != nullptr && calibrated) {
             geometry_msgs::msg::TransformStamped tf;
             tf.header = msg_img->header;
+            // if tag id is already in a bundle and tag is not defined in parameter file, don't estimate and publish transform
+            if((tags_in_bundles.find(det->id) != tags_in_bundles.end()) && (tag_frames.count(det->id) == 0)) { continue; }
             // set child frame name by generic tag name or configured tag name
             tf.child_frame_id = tag_frames.count(det->id) ? tag_frames.at(det->id) : std::string(det->family->name) + ":" + std::to_string(det->id);
             const double size = tag_sizes.count(det->id) ? tag_sizes.at(det->id) : tag_edge_size;
@@ -267,10 +305,21 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         }
     }
 
+
     pub_detections->publish(msg_detections);
 
-    if(estimate_pose != nullptr)
+    if(estimate_pose != nullptr) {
+        for(auto& bundle : all_tag_bundles) {
+            geometry_msgs::msg::TransformStamped bundle_transform_stamped;
+            if(bundle_detections.find(bundle.frame_id) != bundle_detections.end()) {
+                bundle_transform_stamped.header = msg_img->header;
+                bundle_transform_stamped.child_frame_id = bundle.frame_id;
+                bundle_transform_stamped.transform = pnp_bundle(bundle_detections[bundle.frame_id], intrinsics, bundle.id_to_size, bundle.id_to_tf);
+                tf_broadcaster.sendTransform(bundle_transform_stamped);
+            }
+        }
         tf_broadcaster.sendTransform(tfs);
+    }
 
     apriltag_detections_destroy(detections);
 }
