@@ -2,7 +2,6 @@
 #include <Eigen/Geometry>
 #include <apriltag/apriltag_pose.h>
 #include <apriltag/common/homography.h>
-#include <opencv2/calib3d.hpp>
 #include <tf2/convert.h>
 
 
@@ -66,29 +65,14 @@ pnp(apriltag_detection_t* const detection, const std::array<double, 4>& intr, do
 geometry_msgs::msg::Transform
 pnp_bundle(std::vector<apriltag_detection_t*> detections,
            const std::array<double, 4>& intr,
-           std::unordered_map<int, double> tagsizes,
-           std::unordered_map<int, std::vector<double>> transforms)
+           const std::unordered_map<int, std::array<cv::Point3d, 4>>& id_to_corners)
 {
     std::vector<cv::Point3d> objectPoints;
     std::vector<cv::Point2d> imagePoints;
 
     for(const apriltag_detection_t* detection : detections) {
-        int id = detection->id;
-        double s = tagsizes[id] / 2;
-        std::vector<double> tf = transforms[detection->id];
-
-        // note: The tag bundles should probably store pre-computed bundle-frame tag points rather than recalculating it every detection
-        std::vector<Eigen::Vector3d> corners = {
-            Eigen::Vector3d(-s, -s, 0),
-            Eigen::Vector3d(+s, -s, 0),
-            Eigen::Vector3d(+s, +s, 0),
-            Eigen::Vector3d(-s, +s, 0)};
-
-        Eigen::Affine3d transform = Eigen::Translation3d(tf[0], tf[1], tf[2]) * Eigen::Quaternion<double>(tf[3], tf[4], tf[5], tf[6]);
-
-        for(const Eigen::Vector3d& point : corners) {
-            Eigen::Vector3d transformed_point = transform * point;
-            objectPoints.push_back(cv::Point3d(transformed_point.x(), transformed_point.y(), transformed_point.z()));
+        for(const cv::Point3d& point : id_to_corners.at(detection->id)) {
+            objectPoints.push_back(point);
         }
         // Add image points
         for(int i = 0; i < 4; i++) {
