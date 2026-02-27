@@ -14,8 +14,6 @@ jobs:
           - {image: "ubuntu:24.04", ros: jazzy}
           - {image: "ubuntu:24.04", ros: rolling}
           - {image: "almalinux:8", ros: humble}
-          - {image: "almalinux:9", ros: jazzy}
-          - {image: "almalinux:9", ros: rolling}
 
     container:
       image: ${{ matrix.image }}
