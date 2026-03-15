@@ -28,8 +28,8 @@ homography(apriltag_detection_t* const detection, const std::array<double, 4>& i
 geometry_msgs::msg::Transform pnp_from_points(
     const std::vector<cv::Point3d>& objectPoints,
     const std::vector<cv::Point2d>& imagePoints,
-    const std::array<double, 4>& intr
-) {
+    const std::array<double, 4>& intr)
+{
     cv::Matx33d cameraMatrix;
     cameraMatrix(0, 0) = intr[0];// fx
     cameraMatrix(1, 1) = intr[1];// fy
