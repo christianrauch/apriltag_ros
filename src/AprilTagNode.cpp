@@ -7,14 +7,14 @@
 #else
 #include <cv_bridge/cv_bridge.h>
 #endif
+#include <Eigen/Geometry>
 #include <image_transport/camera_subscriber.hpp>
+#include <opencv2/calib3d.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <tf2_ros/transform_broadcaster.hpp>
-#include <Eigen/Geometry>
-#include <opencv2/calib3d.hpp>
 
 // apriltag
 #include "tag_functions.hpp"
@@ -194,7 +194,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
             const std::string prefix = "tag_bundles." + bundle_name + "." + std::to_string(id);
             bundle->id_to_size[id] = declare_parameter(prefix + ".size", 1.0, descr("bundle size", true));
             bundle->id_to_tf[id] = declare_parameter(prefix + ".transform", std::vector<double>{}, descr("bundle transform", true));
-            if (bundle->id_to_tf[id].size() != 7) {
+            if(bundle->id_to_tf[id].size() != 7) {
                 throw std::runtime_error("Invalid transform size for tag id " + std::to_string(id));
             }
         }
@@ -225,7 +225,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         throw std::runtime_error("Unsupported tag family: " + tag_family);
     }
 
-    for (TagBundlePtr& bundle : all_tag_bundles) {
+    for(TagBundlePtr& bundle : all_tag_bundles) {
         // pre-compute bundle-frame tag points
         for(const int64_t& id : bundle->ids) {
             double s = bundle->id_to_size[id] / 2;
@@ -297,7 +297,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         if(det->hamming > max_hamming) { continue; }
 
         // For all detections, extract relevant ones to bundle_detections
-        if (tag_id_to_bundles.count(det->id)) {
+        if(tag_id_to_bundles.count(det->id)) {
             for(const TagBundlePtr& bundle : tag_id_to_bundles[det->id]) {
                 bundle_detections[bundle->frame_id].push_back(det);
             }
