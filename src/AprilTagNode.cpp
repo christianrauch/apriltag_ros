@@ -272,7 +272,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         if(det->hamming > max_hamming) { continue; }
 
         // For all detections, extract relevant ones to bundle_detections
-        if (tag_id_to_bundles.count(det->id)) {
+        if(tag_id_to_bundles.count(det->id)) {
             for(const TagBundlePtr& bundle : tag_id_to_bundles[det->id]) {
                 bundle_detections[bundle->frame_id].push_back(det);
             }
