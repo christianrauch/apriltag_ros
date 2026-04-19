@@ -75,7 +75,7 @@ pnp_bundle(std::vector<apriltag_detection_t*> detections,
     for(const apriltag_detection_t* detection : detections) {
         int id = detection->id;
         double s = tagsizes[id] / 2;
-        std::vector<double> tf = transforms[detection->id];
+        const std::vector<double> tf = transforms[detection->id];
 
         // note: The tag bundles should probably store pre-computed bundle-frame tag points rather than recalculating it every detection
         std::vector<Eigen::Vector3d> corners = {
@@ -84,7 +84,7 @@ pnp_bundle(std::vector<apriltag_detection_t*> detections,
             Eigen::Vector3d(+s, +s, 0),
             Eigen::Vector3d(-s, +s, 0)};
 
-        Eigen::Affine3d transform = Eigen::Translation3d(tf[0], tf[1], tf[2]) * Eigen::Quaternion<double>(tf[3], tf[4], tf[5], tf[6]);
+        Eigen::Affine3d transform = Eigen::Translation3d(tf[0], tf[1], tf[2]) * Eigen::Quaterniond(tf[3], tf[4], tf[5], tf[6]);
 
         for(const Eigen::Vector3d& point : corners) {
             Eigen::Vector3d transformed_point = transform * point;
