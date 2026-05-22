@@ -12,6 +12,7 @@ jobs:
         include:
           - {image: "ubuntu:22.04", ros: humble}
           - {image: "ubuntu:24.04", ros: jazzy}
+          - {image: "ubuntu:26.04", ros: lyrical}
           - {image: "almalinux:8", ros: humble}
 
     container:
