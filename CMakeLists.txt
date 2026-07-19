@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD 14)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Werror -Wall -Wextra -Wpedantic)
-  add_link_options("-Wl,-z,relro,-z,now,-z,defs")
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_link_options("-Wl,-z,relro,-z,now,-z,defs")
+  endif()
 endif()
 
 option(ASAN "use AddressSanitizer to detect memory issues" OFF)
