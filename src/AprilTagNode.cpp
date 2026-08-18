@@ -18,6 +18,10 @@
 #include "tag_functions.hpp"
 #include <apriltag.h>
 
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
+
 
 #define IF(N, V) \
     if(assign_check(parameter, N, V)) continue;
@@ -83,7 +87,17 @@ private:
 
     std::function<void(apriltag_family_t*)> tf_destructor;
 
-    const image_transport::CameraSubscriber sub_cam;
+    // Shared by the callbacks, exclusive for the destructor, which is what makes it
+    // wait for them. Held by shared_ptr so a callback blocked on the mutex when the
+    // node goes away does not wake on a destroyed one.
+    struct Guard
+    {
+        std::shared_mutex mutex;
+        bool alive = true;
+    };
+    const std::shared_ptr<Guard> guard = std::make_shared<Guard>();
+
+    image_transport::CameraSubscriber sub_cam;
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
@@ -110,7 +124,11 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         this,
 #endif
         this->get_node_topics_interface()->resolve_topic_name("image_rect"),
-        std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2),
+        [this, guard = guard](const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
+                              const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci) {
+            const std::shared_lock<std::shared_mutex> lock(guard->mutex);
+            if(guard->alive) { onCamera(msg_img, msg_ci); }
+        },
         declare_parameter("image_transport", "raw", descr({}, true)),
 #ifdef image_transport_QoS
         rclcpp::QoS{rclcpp::QoSInitialization::from_rmw(
@@ -192,6 +210,14 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
 AprilTagNode::~AprilTagNode()
 {
+    // First, or the exclusive lock below queues behind an unbroken stream of shared
+    // ones and never gets in.
+    sub_cam.shutdown();
+    {
+        // Waits for the in-flight callbacks; any that arrive later see alive.
+        const std::unique_lock<std::shared_mutex> lock(guard->mutex);
+        guard->alive = false;
+    }
     apriltag_detector_destroy(td);
     tf_destructor(tf);
 }
