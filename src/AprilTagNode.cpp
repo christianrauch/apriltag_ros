@@ -71,7 +71,7 @@ private:
     const OnSetParametersCallbackHandle::SharedPtr cb_parameter;
 
     apriltag_family_t* tf;
-    apriltag_detector_t* const td;
+    apriltag_detector_t* td;
 
     // parameter
     std::mutex mutex;
@@ -83,7 +83,7 @@ private:
 
     std::function<void(apriltag_family_t*)> tf_destructor;
 
-    const image_transport::CameraSubscriber sub_cam;
+    image_transport::CameraSubscriber sub_cam;
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
     tf2_ros::TransformBroadcaster tf_broadcaster;
 
@@ -192,13 +192,22 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
 AprilTagNode::~AprilTagNode()
 {
+    // unsubscribe, then wait for an in-flight callback to release the mutex
+    sub_cam.shutdown();
+    const std::lock_guard<std::mutex> lock(mutex);
     apriltag_detector_destroy(td);
+    td = nullptr;
     tf_destructor(tf);
 }
 
 void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
                             const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci)
 {
+    const std::lock_guard<std::mutex> lock(mutex);
+
+    // a callback that the executor dispatched before it noticed the unsubscribe
+    if(td == nullptr) { return; }
+
     // camera intrinsics for rectified images
     const std::array<double, 4> intrinsics = {msg_ci->p[0], msg_ci->p[5], msg_ci->p[2], msg_ci->p[6]};
 
@@ -216,9 +225,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     image_u8_t im{img_uint8.cols, img_uint8.rows, img_uint8.cols, img_uint8.data};
 
     // detect tags
-    mutex.lock();
     zarray_t* detections = apriltag_detector_detect(td, &im);
-    mutex.unlock();
 
     if(profile)
         timeprofile_display(td->tp);
