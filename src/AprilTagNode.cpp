@@ -18,10 +18,6 @@
 #include "tag_functions.hpp"
 #include <apriltag.h>
 
-#include <memory>
-#include <mutex>
-#include <shared_mutex>
-
 
 #define IF(N, V) \
     if(assign_check(parameter, N, V)) continue;
@@ -75,7 +71,7 @@ private:
     const OnSetParametersCallbackHandle::SharedPtr cb_parameter;
 
     apriltag_family_t* tf;
-    apriltag_detector_t* const td;
+    apriltag_detector_t* td;
 
     // parameter
     std::mutex mutex;
@@ -86,16 +82,6 @@ private:
     std::unordered_map<int, double> tag_sizes;
 
     std::function<void(apriltag_family_t*)> tf_destructor;
-
-    // Shared by the callbacks, exclusive for the destructor, which is what makes it
-    // wait for them. Held by shared_ptr so a callback blocked on the mutex when the
-    // node goes away does not wake on a destroyed one.
-    struct Guard
-    {
-        std::shared_mutex mutex;
-        bool alive = true;
-    };
-    const std::shared_ptr<Guard> guard = std::make_shared<Guard>();
 
     image_transport::CameraSubscriber sub_cam;
     const rclcpp::Publisher<apriltag_msgs::msg::AprilTagDetectionArray>::SharedPtr pub_detections;
@@ -124,11 +110,7 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         this,
 #endif
         this->get_node_topics_interface()->resolve_topic_name("image_rect"),
-        [this, guard = guard](const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
-                              const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci) {
-            const std::shared_lock<std::shared_mutex> lock(guard->mutex);
-            if(guard->alive) { onCamera(msg_img, msg_ci); }
-        },
+        std::bind(&AprilTagNode::onCamera, this, std::placeholders::_1, std::placeholders::_2),
         declare_parameter("image_transport", "raw", descr({}, true)),
 #ifdef image_transport_QoS
         rclcpp::QoS{rclcpp::QoSInitialization::from_rmw(
@@ -210,21 +192,22 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
 
 AprilTagNode::~AprilTagNode()
 {
-    // First, or the exclusive lock below queues behind an unbroken stream of shared
-    // ones and never gets in.
+    // unsubscribe, then wait for an in-flight callback to release the mutex
     sub_cam.shutdown();
-    {
-        // Waits for the in-flight callbacks; any that arrive later see alive.
-        const std::unique_lock<std::shared_mutex> lock(guard->mutex);
-        guard->alive = false;
-    }
+    const std::lock_guard<std::mutex> lock(mutex);
     apriltag_detector_destroy(td);
+    td = nullptr;
     tf_destructor(tf);
 }
 
 void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_img,
                             const sensor_msgs::msg::CameraInfo::ConstSharedPtr& msg_ci)
 {
+    const std::lock_guard<std::mutex> lock(mutex);
+
+    // a callback that the executor dispatched before it noticed the unsubscribe
+    if(td == nullptr) { return; }
+
     // camera intrinsics for rectified images
     const std::array<double, 4> intrinsics = {msg_ci->p[0], msg_ci->p[5], msg_ci->p[2], msg_ci->p[6]};
 
@@ -242,9 +225,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
     image_u8_t im{img_uint8.cols, img_uint8.rows, img_uint8.cols, img_uint8.data};
 
     // detect tags
-    mutex.lock();
     zarray_t* detections = apriltag_detector_detect(td, &im);
-    mutex.unlock();
 
     if(profile)
         timeprofile_display(td->tp);
