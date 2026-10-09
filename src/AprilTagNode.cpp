@@ -7,7 +7,9 @@
 #else
 #include <cv_bridge/cv_bridge.h>
 #endif
+#include <Eigen/Geometry>
 #include <image_transport/camera_subscriber.hpp>
+#include <opencv2/calib3d.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
@@ -66,6 +68,7 @@ struct TagBundle
     std::set<int64_t> ids;
     std::unordered_map<int, double> id_to_size;
     std::unordered_map<int, std::vector<double>> id_to_tf;
+    std::unordered_map<int, std::array<cv::Point3d, 4>> id_to_corners;
     std::string frame_id;
 };
 
@@ -153,7 +156,8 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     const auto sizes = declare_parameter("tag.sizes", std::vector<double>{}, descr("tag sizes per id", true));
     tag_ids.insert(ids.begin(), ids.end());
 
-    const std::vector<std::string> bundle_names = declare_parameter("tag_bundles.bundle_names", std::vector<std::string>{}, descr("tag bundle names", true));
+    // get list of tag bundles names
+    const auto bundle_names = declare_parameter("tag_bundles.bundle_names", std::vector<std::string>{}, descr("tag bundle names", true));
     // get method for estimating tag pose
     const std::string& pose_estimation_method =
         declare_parameter("pose_estimation_method", "pnp",
@@ -185,13 +189,16 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
         TagBundlePtr bundle = std::make_shared<TagBundle>();
 
         bundle->frame_id = bundle_name;
-        const std::vector<int64_t> bundle_ids_vector = declare_parameter("tag_bundles." + bundle_name + ".ids", std::vector<int64_t>{}, descr("bundle ids", true));
+        std::vector<int64_t> bundle_ids_vector = declare_parameter("tag_bundles." + bundle_name + ".ids", std::vector<int64_t>{}, descr("bundle ids", true));
         bundle->ids = std::set<int64_t>(bundle_ids_vector.begin(), bundle_ids_vector.end());
         for(const int64_t& id : bundle->ids) {
             tag_id_to_bundles[id].push_back(bundle);
             const std::string prefix = "tag_bundles." + bundle_name + "." + std::to_string(id);
             bundle->id_to_size[id] = declare_parameter(prefix + ".size", 1.0, descr("bundle size", true));
             bundle->id_to_tf[id] = declare_parameter(prefix + ".transform", std::vector<double>{}, descr("bundle transform", true));
+            if(bundle->id_to_tf[id].size() != 7) {
+                throw std::runtime_error("Invalid transform size for tag id " + std::to_string(id));
+            }
         }
         all_tag_bundles.push_back(bundle);
     }
@@ -218,6 +225,25 @@ AprilTagNode::AprilTagNode(const rclcpp::NodeOptions& options)
     }
     else {
         throw std::runtime_error("Unsupported tag family: " + tag_family);
+    }
+
+    for(TagBundlePtr& bundle : all_tag_bundles) {
+        // pre-compute bundle-frame tag points
+        for(const int64_t& id : bundle->ids) {
+            double s = bundle->id_to_size[id] / 2;
+            const std::array<Eigen::Vector3d, 4> corners = {
+                Eigen::Vector3d(-s, -s, 0),
+                Eigen::Vector3d(+s, -s, 0),
+                Eigen::Vector3d(+s, +s, 0),
+                Eigen::Vector3d(-s, +s, 0)};
+            const std::vector<double>& tf = bundle->id_to_tf[id];
+            Eigen::Affine3d transform = Eigen::Translation3d(tf[0], tf[1], tf[2]) * Eigen::Quaternion<double>(tf[3], tf[4], tf[5], tf[6]);
+
+            for(size_t i = 0; i < corners.size(); i++) {
+                Eigen::Vector3d transformed_point = transform * corners[i];
+                bundle->id_to_corners[id][i] = cv::Point3d(transformed_point.x(), transformed_point.y(), transformed_point.z());
+            }
+        }
     }
 }
 
@@ -272,6 +298,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
         // reject detections with more corrected bits than allowed
         if(det->hamming > max_hamming) { continue; }
 
+        // For all detections, extract relevant ones to bundle_detections
         if(tag_id_to_bundles.count(det->id)) {
             for(const TagBundlePtr& bundle : tag_id_to_bundles[det->id]) {
                 bundle_detections[bundle].push_back(det);
@@ -315,7 +342,7 @@ void AprilTagNode::onCamera(const sensor_msgs::msg::Image::ConstSharedPtr& msg_i
             geometry_msgs::msg::TransformStamped bundle_transform_stamped;
             bundle_transform_stamped.header = msg_img->header;
             bundle_transform_stamped.child_frame_id = bundle->frame_id;
-            bundle_transform_stamped.transform = pnp_bundle(detections, intrinsics, bundle->id_to_size, bundle->id_to_tf);
+            bundle_transform_stamped.transform = pnp_bundle(detections, intrinsics, bundle->id_to_corners);
             tf_broadcaster.sendTransform(bundle_transform_stamped);
         }
         tf_broadcaster.sendTransform(tfs);
